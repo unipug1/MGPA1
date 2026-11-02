@@ -1,11 +1,11 @@
-#Tue Oct 27 10:13:11 SGT 2026
-base.0=C\:\\Users\\szeyee\\Downloads\\wk02-scaffolding-app\\wk02-scaffolding-app\\app\\build\\intermediates\\dex\\debug\\mergeExtDexDebug\\classes.dex
-base.1=C\:\\Users\\szeyee\\Downloads\\wk02-scaffolding-app\\wk02-scaffolding-app\\app\\build\\intermediates\\dex\\debug\\mergeProjectDexDebug\\0\\classes.dex
-base.2=C\:\\Users\\szeyee\\Downloads\\wk02-scaffolding-app\\wk02-scaffolding-app\\app\\build\\intermediates\\dex\\debug\\mergeProjectDexDebug\\4\\classes.dex
-base.3=C\:\\Users\\szeyee\\Downloads\\wk02-scaffolding-app\\wk02-scaffolding-app\\app\\build\\intermediates\\dex\\debug\\mergeProjectDexDebug\\7\\classes.dex
-base.4=C\:\\Users\\szeyee\\Downloads\\wk02-scaffolding-app\\wk02-scaffolding-app\\app\\build\\intermediates\\global_synthetics_dex\\debug\\generateDebugGlobalSynthetics\\classes.dex
-base.5=C\:\\Users\\szeyee\\Downloads\\wk02-scaffolding-app\\wk02-scaffolding-app\\app\\build\\intermediates\\dex\\debug\\mergeExtDexDebug\\classes2.dex
-base.6=C\:\\Users\\szeyee\\Downloads\\wk02-scaffolding-app\\wk02-scaffolding-app\\app\\build\\intermediates\\dex\\debug\\mergeExtDexDebug\\classes3.dex
+#Mon Nov 02 22:49:00 SGT 2026
+base.0=C\:\\Users\\szeyee\\Documents\\GitHub\\MGPA1\\wk02-scaffolding-app\\app\\build\\intermediates\\dex\\debug\\mergeExtDexDebug\\classes.dex
+base.1=C\:\\Users\\szeyee\\Documents\\GitHub\\MGPA1\\wk02-scaffolding-app\\app\\build\\intermediates\\dex\\debug\\mergeProjectDexDebug\\0\\classes.dex
+base.2=C\:\\Users\\szeyee\\Documents\\GitHub\\MGPA1\\wk02-scaffolding-app\\app\\build\\intermediates\\dex\\debug\\mergeProjectDexDebug\\4\\classes.dex
+base.3=C\:\\Users\\szeyee\\Documents\\GitHub\\MGPA1\\wk02-scaffolding-app\\app\\build\\intermediates\\dex\\debug\\mergeProjectDexDebug\\7\\classes.dex
+base.4=C\:\\Users\\szeyee\\Documents\\GitHub\\MGPA1\\wk02-scaffolding-app\\app\\build\\intermediates\\global_synthetics_dex\\debug\\generateDebugGlobalSynthetics\\classes.dex
+base.5=C\:\\Users\\szeyee\\Documents\\GitHub\\MGPA1\\wk02-scaffolding-app\\app\\build\\intermediates\\dex\\debug\\mergeExtDexDebug\\classes2.dex
+base.6=C\:\\Users\\szeyee\\Documents\\GitHub\\MGPA1\\wk02-scaffolding-app\\app\\build\\intermediates\\dex\\debug\\mergeExtDexDebug\\classes3.dex
 path.0=classes.dex
 path.1=0/classes.dex
 path.2=4/classes.dex

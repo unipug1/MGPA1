@@ -4,6 +4,23 @@
             "outputFile": "com.nyp.scaffoldingapp-mergeDebugResources-45:/values/values.xml",
             "map": [
                 {
+                    "source": "C:\\Users\\szeyee\\Documents\\GitHub\\MGPA1\\wk02-scaffolding-app\\app\\src\\main\\res\\values\\themes.xml",
+                    "from": {
+                        "startLines": "3",
+                        "startColumns": "4",
+                        "startOffsets": "56",
+                        "endColumns": "87",
+                        "endOffsets": "139"
+                    },
+                    "to": {
+                        "startLines": "333",
+                        "startColumns": "4",
+                        "startOffsets": "18774",
+                        "endColumns": "86",
+                        "endOffsets": "18856"
+                    }
+                },
+                {
                     "source": "C:\\Users\\szeyee\\.gradle\\caches\\9.5.0\\transforms\\ebc7acccc293cb93d3bc7bd46ee5fe7a\\transformed\\savedstate-release\\res\\values\\values.xml",
                     "from": {
                         "startLines": "2",
@@ -18,23 +35,6 @@
                         "startOffsets": "9245",
                         "endColumns": "53",
                         "endOffsets": "9294"
-                    }
-                },
-                {
-                    "source": "C:\\Users\\szeyee\\Downloads\\wk02-scaffolding-app\\wk02-scaffolding-app\\app\\src\\main\\res\\values\\colors.xml",
-                    "from": {
-                        "startLines": "7,2,3,4,5,6,8",
-                        "startColumns": "4,4,4,4,4,4,4",
-                        "startOffsets": "286,55,102,149,196,241,328",
-                        "endColumns": "41,46,46,46,44,44,41",
-                        "endOffsets": "323,97,144,191,236,281,365"
-                    },
-                    "to": {
-                        "startLines": "75,80,81,82,83,84,85",
-                        "startColumns": "4,4,4,4,4,4,4",
-                        "startOffsets": "2488,2793,2840,2887,2934,2979,3024",
-                        "endColumns": "41,46,46,46,44,44,41",
-                        "endOffsets": "2525,2835,2882,2929,2974,3019,3061"
                     }
                 },
                 {
@@ -127,6 +127,23 @@
                     }
                 },
                 {
+                    "source": "C:\\Users\\szeyee\\Documents\\GitHub\\MGPA1\\wk02-scaffolding-app\\app\\src\\main\\res\\values\\strings.xml",
+                    "from": {
+                        "startLines": "1",
+                        "startColumns": "4",
+                        "startOffsets": "16",
+                        "endColumns": "52",
+                        "endOffsets": "64"
+                    },
+                    "to": {
+                        "startLines": "200",
+                        "startColumns": "4",
+                        "startOffsets": "9768",
+                        "endColumns": "52",
+                        "endOffsets": "9816"
+                    }
+                },
+                {
                     "source": "C:\\Users\\szeyee\\.gradle\\caches\\9.5.0\\transforms\\8d6622f40fdd9eed26fe228982fcbbba\\transformed\\material\\res\\values\\values.xml",
                     "from": {
                         "startLines": "2",
@@ -141,23 +158,6 @@
                         "startOffsets": "15930",
                         "endColumns": "57",
                         "endOffsets": "15983"
-                    }
-                },
-                {
-                    "source": "C:\\Users\\szeyee\\Downloads\\wk02-scaffolding-app\\wk02-scaffolding-app\\app\\src\\main\\res\\values\\strings.xml",
-                    "from": {
-                        "startLines": "1",
-                        "startColumns": "4",
-                        "startOffsets": "16",
-                        "endColumns": "52",
-                        "endOffsets": "64"
-                    },
-                    "to": {
-                        "startLines": "200",
-                        "startColumns": "4",
-                        "startOffsets": "9768",
-                        "endColumns": "52",
-                        "endOffsets": "9816"
                     }
                 },
                 {
@@ -252,23 +252,6 @@
                     }
                 },
                 {
-                    "source": "C:\\Users\\szeyee\\Downloads\\wk02-scaffolding-app\\wk02-scaffolding-app\\app\\src\\main\\res\\values\\themes.xml",
-                    "from": {
-                        "startLines": "3",
-                        "startColumns": "4",
-                        "startOffsets": "56",
-                        "endColumns": "87",
-                        "endOffsets": "139"
-                    },
-                    "to": {
-                        "startLines": "333",
-                        "startColumns": "4",
-                        "startOffsets": "18774",
-                        "endColumns": "86",
-                        "endOffsets": "18856"
-                    }
-                },
-                {
                     "source": "C:\\Users\\szeyee\\.gradle\\caches\\9.5.0\\transforms\\88c590728f260432d37d69c96bc8032d\\transformed\\navigation-common-2.7.7\\res\\values\\values.xml",
                     "from": {
                         "startLines": "2,15,21,27,30",
@@ -353,6 +336,23 @@
                         "startOffsets": "6848,9545,16680,16736",
                         "endColumns": "55,73,55,54",
                         "endOffsets": "6899,9614,16731,16786"
+                    }
+                },
+                {
+                    "source": "C:\\Users\\szeyee\\Documents\\GitHub\\MGPA1\\wk02-scaffolding-app\\app\\src\\main\\res\\values\\colors.xml",
+                    "from": {
+                        "startLines": "7,2,3,4,5,6,8",
+                        "startColumns": "4,4,4,4,4,4,4",
+                        "startOffsets": "286,55,102,149,196,241,328",
+                        "endColumns": "41,46,46,46,44,44,41",
+                        "endOffsets": "323,97,144,191,236,281,365"
+                    },
+                    "to": {
+                        "startLines": "75,80,81,82,83,84,85",
+                        "startColumns": "4,4,4,4,4,4,4",
+                        "startOffsets": "2488,2793,2840,2887,2934,2979,3024",
+                        "endColumns": "41,46,46,46,44,44,41",
+                        "endOffsets": "2525,2835,2882,2929,2974,3019,3061"
                     }
                 }
             ]
