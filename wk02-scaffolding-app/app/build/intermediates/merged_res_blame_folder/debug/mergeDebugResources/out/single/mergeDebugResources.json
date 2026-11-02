@@ -1,0 +1,146 @@
+[
+    {
+        "merged": "com.nyp.scaffoldingapp-debug-47:/drawable-mdpi_ic_list.png.flat",
+        "source": "com.nyp.scaffoldingapp-main-49:/drawable-mdpi/ic_list.png"
+    },
+    {
+        "merged": "com.nyp.scaffoldingapp-debug-47:/drawable-hdpi_ic_list.png.flat",
+        "source": "com.nyp.scaffoldingapp-main-49:/drawable-hdpi/ic_list.png"
+    },
+    {
+        "merged": "com.nyp.scaffoldingapp-debug-47:/mipmap-xxxhdpi_ic_launcher_round.webp.flat",
+        "source": "com.nyp.scaffoldingapp-main-49:/mipmap-xxxhdpi/ic_launcher_round.webp"
+    },
+    {
+        "merged": "com.nyp.scaffoldingapp-debug-47:/mipmap-xxhdpi_ic_launcher.webp.flat",
+        "source": "com.nyp.scaffoldingapp-main-49:/mipmap-xxhdpi/ic_launcher.webp"
+    },
+    {
+        "merged": "com.nyp.scaffoldingapp-debug-47:/drawable-xxxhdpi_ic_home.png.flat",
+        "source": "com.nyp.scaffoldingapp-main-49:/drawable-xxxhdpi/ic_home.png"
+    },
+    {
+        "merged": "com.nyp.scaffoldingapp-debug-47:/drawable-xhdpi_ic_email.png.flat",
+        "source": "com.nyp.scaffoldingapp-main-49:/drawable-xhdpi/ic_email.png"
+    },
+    {
+        "merged": "com.nyp.scaffoldingapp-debug-47:/mipmap-xxxhdpi_ic_launcher.webp.flat",
+        "source": "com.nyp.scaffoldingapp-main-49:/mipmap-xxxhdpi/ic_launcher.webp"
+    },
+    {
+        "merged": "com.nyp.scaffoldingapp-debug-47:/drawable-xxhdpi_ic_list.png.flat",
+        "source": "com.nyp.scaffoldingapp-main-49:/drawable-xxhdpi/ic_list.png"
+    },
+    {
+        "merged": "com.nyp.scaffoldingapp-debug-47:/drawable-xxhdpi_ic_star.png.flat",
+        "source": "com.nyp.scaffoldingapp-main-49:/drawable-xxhdpi/ic_star.png"
+    },
+    {
+        "merged": "com.nyp.scaffoldingapp-debug-47:/drawable_ic_launcher_background.xml.flat",
+        "source": "com.nyp.scaffoldingapp-main-49:/drawable/ic_launcher_background.xml"
+    },
+    {
+        "merged": "com.nyp.scaffoldingapp-debug-47:/xml_data_extraction_rules.xml.flat",
+        "source": "com.nyp.scaffoldingapp-main-49:/xml/data_extraction_rules.xml"
+    },
+    {
+        "merged": "com.nyp.scaffoldingapp-debug-47:/drawable-mdpi_ic_star.png.flat",
+        "source": "com.nyp.scaffoldingapp-main-49:/drawable-mdpi/ic_star.png"
+    },
+    {
+        "merged": "com.nyp.scaffoldingapp-debug-47:/mipmap-xxhdpi_ic_launcher_round.webp.flat",
+        "source": "com.nyp.scaffoldingapp-main-49:/mipmap-xxhdpi/ic_launcher_round.webp"
+    },
+    {
+        "merged": "com.nyp.scaffoldingapp-debug-47:/mipmap-hdpi_ic_launcher_round.webp.flat",
+        "source": "com.nyp.scaffoldingapp-main-49:/mipmap-hdpi/ic_launcher_round.webp"
+    },
+    {
+        "merged": "com.nyp.scaffoldingapp-debug-47:/drawable-hdpi_ic_star.png.flat",
+        "source": "com.nyp.scaffoldingapp-main-49:/drawable-hdpi/ic_star.png"
+    },
+    {
+        "merged": "com.nyp.scaffoldingapp-debug-47:/mipmap-anydpi-v26_ic_launcher.xml.flat",
+        "source": "com.nyp.scaffoldingapp-main-49:/mipmap-anydpi-v26/ic_launcher.xml"
+    },
+    {
+        "merged": "com.nyp.scaffoldingapp-debug-47:/drawable-xxxhdpi_ic_list.png.flat",
+        "source": "com.nyp.scaffoldingapp-main-49:/drawable-xxxhdpi/ic_list.png"
+    },
+    {
+        "merged": "com.nyp.scaffoldingapp-debug-47:/drawable-xxxhdpi_ic_star.png.flat",
+        "source": "com.nyp.scaffoldingapp-main-49:/drawable-xxxhdpi/ic_star.png"
+    },
+    {
+        "merged": "com.nyp.scaffoldingapp-debug-47:/drawable-xxhdpi_ic_home.png.flat",
+        "source": "com.nyp.scaffoldingapp-main-49:/drawable-xxhdpi/ic_home.png"
+    },
+    {
+        "merged": "com.nyp.scaffoldingapp-debug-47:/drawable-mdpi_ic_email.png.flat",
+        "source": "com.nyp.scaffoldingapp-main-49:/drawable-mdpi/ic_email.png"
+    },
+    {
+        "merged": "com.nyp.scaffoldingapp-debug-47:/xml_backup_rules.xml.flat",
+        "source": "com.nyp.scaffoldingapp-main-49:/xml/backup_rules.xml"
+    },
+    {
+        "merged": "com.nyp.scaffoldingapp-debug-47:/drawable-xxhdpi_ic_email.png.flat",
+        "source": "com.nyp.scaffoldingapp-main-49:/drawable-xxhdpi/ic_email.png"
+    },
+    {
+        "merged": "com.nyp.scaffoldingapp-debug-47:/drawable-mdpi_ic_home.png.flat",
+        "source": "com.nyp.scaffoldingapp-main-49:/drawable-mdpi/ic_home.png"
+    },
+    {
+        "merged": "com.nyp.scaffoldingapp-debug-47:/mipmap-hdpi_ic_launcher.webp.flat",
+        "source": "com.nyp.scaffoldingapp-main-49:/mipmap-hdpi/ic_launcher.webp"
+    },
+    {
+        "merged": "com.nyp.scaffoldingapp-debug-47:/drawable-hdpi_ic_home.png.flat",
+        "source": "com.nyp.scaffoldingapp-main-49:/drawable-hdpi/ic_home.png"
+    },
+    {
+        "merged": "com.nyp.scaffoldingapp-debug-47:/mipmap-anydpi-v26_ic_launcher_round.xml.flat",
+        "source": "com.nyp.scaffoldingapp-main-49:/mipmap-anydpi-v26/ic_launcher_round.xml"
+    },
+    {
+        "merged": "com.nyp.scaffoldingapp-debug-47:/drawable-xxxhdpi_ic_email.png.flat",
+        "source": "com.nyp.scaffoldingapp-main-49:/drawable-xxxhdpi/ic_email.png"
+    },
+    {
+        "merged": "com.nyp.scaffoldingapp-debug-47:/drawable-hdpi_ic_email.png.flat",
+        "source": "com.nyp.scaffoldingapp-main-49:/drawable-hdpi/ic_email.png"
+    },
+    {
+        "merged": "com.nyp.scaffoldingapp-debug-47:/drawable-xhdpi_ic_list.png.flat",
+        "source": "com.nyp.scaffoldingapp-main-49:/drawable-xhdpi/ic_list.png"
+    },
+    {
+        "merged": "com.nyp.scaffoldingapp-debug-47:/drawable_ic_launcher_foreground.xml.flat",
+        "source": "com.nyp.scaffoldingapp-main-49:/drawable/ic_launcher_foreground.xml"
+    },
+    {
+        "merged": "com.nyp.scaffoldingapp-debug-47:/mipmap-xhdpi_ic_launcher.webp.flat",
+        "source": "com.nyp.scaffoldingapp-main-49:/mipmap-xhdpi/ic_launcher.webp"
+    },
+    {
+        "merged": "com.nyp.scaffoldingapp-debug-47:/drawable-xhdpi_ic_star.png.flat",
+        "source": "com.nyp.scaffoldingapp-main-49:/drawable-xhdpi/ic_star.png"
+    },
+    {
+        "merged": "com.nyp.scaffoldingapp-debug-47:/drawable-xhdpi_ic_home.png.flat",
+        "source": "com.nyp.scaffoldingapp-main-49:/drawable-xhdpi/ic_home.png"
+    },
+    {
+        "merged": "com.nyp.scaffoldingapp-debug-47:/mipmap-mdpi_ic_launcher_round.webp.flat",
+        "source": "com.nyp.scaffoldingapp-main-49:/mipmap-mdpi/ic_launcher_round.webp"
+    },
+    {
+        "merged": "com.nyp.scaffoldingapp-debug-47:/mipmap-xhdpi_ic_launcher_round.webp.flat",
+        "source": "com.nyp.scaffoldingapp-main-49:/mipmap-xhdpi/ic_launcher_round.webp"
+    },
+    {
+        "merged": "com.nyp.scaffoldingapp-debug-47:/mipmap-mdpi_ic_launcher.webp.flat",
+        "source": "com.nyp.scaffoldingapp-main-49:/mipmap-mdpi/ic_launcher.webp"
+    }
+]
