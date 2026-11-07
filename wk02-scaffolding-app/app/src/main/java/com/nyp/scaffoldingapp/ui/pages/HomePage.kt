@@ -14,8 +14,10 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.RectangleShape
 import androidx.core.graphics.toColorInt
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 
@@ -46,29 +48,71 @@ fun HomePage(modifier: Modifier = Modifier, viewModel: HomeViewModel) {
                 Column(Modifier.fillMaxSize()
                     .padding(top = 16.dp)
                 ) {
-                    Card(Modifier.fillMaxWidth()
-                        .padding(16.dp),
+                    // first section: d-date, actual day + date, more button
+                    Box(Modifier.fillMaxWidth()
+                        .padding(horizontal = 20.dp),
+                        contentAlignment = Alignment.Center)
+                    {
+                        Card(Modifier.align(Alignment.CenterStart),
+                            shape = RoundedCornerShape(10.dp),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+                        ) {
+                            Text("D-Day", Modifier.padding(10.dp),
+                                style = MaterialTheme.typography.bodyMedium)
+                        }
+                        Text("Fri, 10/30", style = MaterialTheme.typography.bodyMedium)
+                        Text("□", Modifier.align(Alignment.CenterEnd),
+                            style = MaterialTheme.typography.headlineMedium)
+                    }
+
+                    Spacer(Modifier.height(20.dp))
+
+                    Card(Modifier.fillMaxWidth(),
+                        shape = RectangleShape,
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
                     ) {
-                        Column(Modifier.padding(16.dp),
+                        Column(Modifier.fillMaxWidth()
+                            .padding(16.dp),
                             horizontalAlignment = Alignment.CenterHorizontally)
                         {
+                            // focus timer section
                             val hours = state.currentFocusTime / 3600
                             val minutes = (state.currentFocusTime % 3600) / 60
                             val seconds = state.currentFocusTime % 60
                             val formattedTime = String.format("%d:%02d:%02d", hours, minutes, seconds)
-
                             Text(text = formattedTime, style = MaterialTheme.typography.headlineLarge)
+
+                            Spacer(Modifier.height(20.dp))
+
+                            val restHours = state.currentRestTime / 3600
+                            val restMinutes = (state.currentRestTime % 3600) / 60
+                            val restSeconds = state.currentRestTime % 60
+                            val restFormattedTime = "${restHours}h${restMinutes}min${restSeconds}s"
+                            Text(text = restFormattedTime, style = MaterialTheme.typography.headlineSmall)
                         }
                     }
-                    Spacer(Modifier.height(16.dp))
 
+                    HorizontalDivider(thickness = 2.dp)
                     // subject list section
                     SubjectListSection(subjects = state.subjects,
                         onSubjectClick =  {selectedSubject ->
                             // handle subject selection or navigation to timer tracking
                         }
                     )
+
+                    Spacer(Modifier.weight(1f))
+                    // edit subject button
+                    Button(onClick = {println("Button clicked!")},
+                        shape = RoundedCornerShape(10.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                            contentColor = MaterialTheme.colorScheme.onSurfaceVariant // ensures text is readable
+                        ),
+                        modifier = Modifier.padding(start = 15.dp)
+                    ) {
+                        Text("Edit Subject")
+                    }
+                    Spacer(Modifier.padding(5.dp))
                 }
             }
         }
@@ -82,9 +126,7 @@ fun SubjectListSection(
 ) {
     LazyColumn(
         modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+            .fillMaxWidth(),
     ) {
         items(subjects, key = { it.id }) { subject ->
             SubjectRowItem(subject = subject) {
@@ -106,7 +148,9 @@ fun SubjectRowItem(subject: Subject, onClick: () -> Unit) {
 
     Card(modifier = Modifier
         .fillMaxWidth()
-        .clickable { onClick( )}
+        .clickable { onClick( )},
+        shape = RectangleShape,
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.background)
     ) {
         Row(modifier = Modifier
             .fillMaxWidth()
@@ -157,6 +201,6 @@ fun SubjectRowItem(subject: Subject, onClick: () -> Unit) {
 @Preview(showBackground = true)
 @Composable
 private fun MockPage1Preview() {
-    var viewModel = HomeViewModel()
+    val viewModel = HomeViewModel()
     MaterialTheme { HomePage(Modifier, viewModel) }
 }
