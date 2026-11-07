@@ -25,7 +25,8 @@ class HomeViewModel : ViewModel() {
                 )
                 _uiState.value = HomeUIState.Success(
                     subjects = fetchedSubjects,
-                    currentFocusTime = 10,
+                    currentFocusTime = 0,
+                    currentRestTime = 0,
                     isTimerRunning = false,
                     activeSubject = fetchedSubjects.first()
                 )

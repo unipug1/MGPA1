@@ -12,6 +12,7 @@ sealed interface HomeUIState {
     data class Success(
         val subjects: List<Subject>,
         val currentFocusTime: Long,
+        val currentRestTime: Long,
         val isTimerRunning: Boolean,
         val activeSubject: Subject?
     ) : HomeUIState
