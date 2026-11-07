@@ -16,8 +16,8 @@ import androidx.compose.ui.unit.dp
  * job — four labels is one section, four times.
  */
 
-@Composable
-fun Page1(modifier: Modifier = Modifier) = Placeholder("Page 1", modifier)
+// @Composable
+//fun Page1(modifier: Modifier = Modifier) = Placeholder("Page 1", modifier)
 
 @Composable
 fun Page2(modifier: Modifier = Modifier) = Placeholder("Page 2", modifier)
