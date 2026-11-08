@@ -4,6 +4,7 @@ plugins {
 }
 
 android {
+
     namespace = "com.nyp.scaffoldingapp"
     compileSdk {
         version = release(36) {
@@ -31,7 +32,16 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
+
+
+        isCoreLibraryDesugaringEnabled = true
+
+
+        sourceCompatibility = JavaVersion.VERSION_1_8
+        targetCompatibility = JavaVersion.VERSION_1_8
     }
+
+
     buildFeatures {
         compose = true
     }
@@ -40,6 +50,13 @@ android {
 }
 
 dependencies {
+    coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.3")
+
+    // 2. Standard string replacements for the broken lines
+    implementation("androidx.core:core-ktx:1.10.1")
+    implementation("androidx.appcompat:appcompat:1.6.1")
+
+
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.compose.material3)

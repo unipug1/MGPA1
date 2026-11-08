@@ -67,7 +67,7 @@ fun AppScaffold() {
         // the navigation bar.
         Box(Modifier.padding(padding).fillMaxSize()) {
             when (selectedTab) {
-                Tab.PAGE1 -> Page1()
+                Tab.PAGE1 -> ToDoPage(Modifier)
                 Tab.PAGE2 -> Page2()
                 Tab.PAGE3 -> Page3()
                 Tab.PAGE4 -> Page4()
