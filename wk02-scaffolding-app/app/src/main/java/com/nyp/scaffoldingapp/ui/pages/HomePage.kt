@@ -1,5 +1,6 @@
 package com.nyp.scaffoldingapp.ui.pages
 
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -20,14 +21,30 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.window.Dialog
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.window.DialogProperties
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
+
 
 /*
 * Page 1 is the home page
- */
+*/
+
 
 @Composable
 fun HomePage(modifier: Modifier = Modifier, viewModel: HomeViewModel) {
     val uiState by viewModel.uiState.collectAsState()
+    var showAddSubjectDialogue by rememberSaveable {mutableStateOf(false)}
+
 
     Surface(
         Modifier.fillMaxSize(),
@@ -65,7 +82,9 @@ fun HomePage(modifier: Modifier = Modifier, viewModel: HomeViewModel) {
                             style = MaterialTheme.typography.headlineMedium)
                     }
 
+
                     Spacer(Modifier.height(20.dp))
+
 
                     Card(Modifier.fillMaxWidth(),
                         shape = RectangleShape,
@@ -82,7 +101,9 @@ fun HomePage(modifier: Modifier = Modifier, viewModel: HomeViewModel) {
                             val formattedTime = String.format("%d:%02d:%02d", hours, minutes, seconds)
                             Text(text = formattedTime, style = MaterialTheme.typography.headlineLarge)
 
+
                             Spacer(Modifier.height(20.dp))
+
 
                             val restHours = state.currentRestTime / 3600
                             val restMinutes = (state.currentRestTime % 3600) / 60
@@ -92,6 +113,7 @@ fun HomePage(modifier: Modifier = Modifier, viewModel: HomeViewModel) {
                         }
                     }
 
+
                     HorizontalDivider(thickness = 2.dp)
                     // subject list section
                     SubjectListSection(subjects = state.subjects,
@@ -100,9 +122,10 @@ fun HomePage(modifier: Modifier = Modifier, viewModel: HomeViewModel) {
                         }
                     )
 
+
                     Spacer(Modifier.weight(1f))
-                    // edit subject button
-                    Button(onClick = {println("Button clicked!")},
+                    // add subject button
+                    Button(onClick = {showAddSubjectDialogue = true},
                         shape = RoundedCornerShape(10.dp),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = MaterialTheme.colorScheme.surfaceVariant,
@@ -110,14 +133,26 @@ fun HomePage(modifier: Modifier = Modifier, viewModel: HomeViewModel) {
                         ),
                         modifier = Modifier.padding(start = 15.dp)
                     ) {
-                        Text("Edit Subject")
+                        Text("Add Subject")
                     }
                     Spacer(Modifier.padding(5.dp))
                 }
             }
         }
     }
+
+
+    if (showAddSubjectDialogue) {
+        AddSubjectDialog(
+            onDismiss = {showAddSubjectDialogue = false},
+            onSave = {name, color ->
+                viewModel.addSubject(name, color)
+                showAddSubjectDialogue = false
+            }
+        )
+    }
 }
+
 
 @Composable
 fun SubjectListSection(
@@ -126,7 +161,7 @@ fun SubjectListSection(
 ) {
     LazyColumn(
         modifier = Modifier
-            .fillMaxWidth(),
+            .fillMaxWidth()
     ) {
         items(subjects, key = { it.id }) { subject ->
             SubjectRowItem(subject = subject) {
@@ -135,6 +170,188 @@ fun SubjectListSection(
         }
     }
 }
+
+
+@Composable
+fun AddSubjectDialog(
+    onDismiss: () -> Unit,
+    onSave: (String, String) -> Unit
+) {
+    var subjectName by rememberSaveable {mutableStateOf("")}
+    val subjectNameFocusRequester = remember { FocusRequester() }
+    // default color grey
+    var subjectColor by rememberSaveable {mutableStateOf("#9E9E9E")}
+    var showSelectColorDialogue by rememberSaveable {mutableStateOf(false)}
+
+
+    Dialog(onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)) {
+        Card(modifier = Modifier
+            .fillMaxWidth()
+            .fillMaxHeight(0.95f),
+            shape = RoundedCornerShape(20.dp)
+        ) {
+            Column(modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp)
+            ) {
+                Row(modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically) {
+                    Button(onClick = onDismiss) {
+                        Text("✗")
+                    }
+                    Spacer(Modifier.weight(1f))
+                    Text(
+                        text = "Subject name",
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                    Spacer(Modifier.weight(1f))
+                    Button(onClick = { onSave(subjectName.trim(), subjectColor) },
+                        enabled = subjectName.isNotBlank()
+                    ) {
+                        Text("✓")
+                    }
+                }
+
+
+                // subject name
+                Spacer(Modifier.height(30.dp))
+                Card(modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp)) {
+                    OutlinedTextField(
+                        value = subjectName,
+                        onValueChange = {subjectName = it},
+                        modifier = Modifier.fillMaxWidth()
+                            .focusRequester(subjectNameFocusRequester),
+                        placeholder = {Text("e.g. math, english, science, geography...")},
+                        singleLine = true
+                    )
+                    LaunchedEffect(Unit) {
+                        subjectNameFocusRequester.requestFocus()
+                    }
+                }
+
+
+                // subject color
+                Spacer(Modifier.padding(30.dp))
+                Card(modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp)) {
+                    Row(modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween) {
+                        Text("Select Color")
+
+
+                        val parsedColor = try {
+                            Color(subjectColor.toColorInt())
+                        } catch (e:Exception) {
+                            Color.Gray
+                        }
+                        // color wheel
+                        Box(modifier = Modifier
+                            .size(24.dp)
+                            .background(color = parsedColor, shape = CircleShape)
+                            .clickable{ showSelectColorDialogue = true}
+                        )
+                    }
+                }
+            }
+        }
+    }
+
+
+    // add more colors later
+    val availableColors = listOf(
+        "#EA1E63", // red pink
+        "#FD9800", // light orange
+        "#FD5723", // orange
+        "#FFEB3C", // pale yellow
+        "#7A574D", // brown
+        "#9E9E9E" // gray
+    )
+
+
+    if (showSelectColorDialogue) {
+        var tempSelectedColor by rememberSaveable {mutableStateOf(subjectColor)}
+
+
+        Dialog(onDismissRequest = onDismiss) {
+            Card(modifier = Modifier
+                .fillMaxWidth()
+                .padding(50.dp)
+            ) {
+                Column(modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp)
+                ) {
+                    Spacer(Modifier.height(16.dp))
+                    Text("Select color", style = MaterialTheme.typography.headlineSmall)
+
+
+                    // color selection
+                    LazyVerticalGrid(
+                        columns = GridCells.Fixed(5),
+                        Modifier
+                            .fillMaxWidth()
+                            .height(180.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        items(availableColors) { colorHex ->
+                            val colorInt = try {
+                                Color(colorHex.toColorInt())
+                            } catch (e: Exception) {
+                                Color.Gray
+                            }
+
+
+                            Box(Modifier
+                                .size(40.dp)
+                                .background(colorInt, shape = CircleShape)
+                                .clickable { tempSelectedColor = colorHex},
+                                contentAlignment = Alignment.Center
+                            ) {
+                                if (colorHex == tempSelectedColor) {
+                                    Text("✓", color = Color.Black)
+                                }
+                            }
+                        }
+                    }
+
+
+                    // buttons
+                    Row(Modifier.fillMaxWidth()){
+                        // 1: cancel
+                        Button(onClick = {showSelectColorDialogue = false},
+                            shape = RoundedCornerShape(10.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                contentColor = MaterialTheme.colorScheme.onSurfaceVariant // ensures text is readable
+                            )) {
+                            Text("Cancel")
+                        }
+                        Spacer(Modifier.weight(1f))
+                        // 2: ok
+                        Button(onClick = {subjectColor = tempSelectedColor
+                            showSelectColorDialogue = false},
+                            shape = RoundedCornerShape(10.dp),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                                contentColor = MaterialTheme.colorScheme.onSurfaceVariant // ensures text is readable
+                            )) {
+                            Text("OK")
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
 
 @Composable
 fun SubjectRowItem(subject: Subject, onClick: () -> Unit) {
@@ -146,6 +363,7 @@ fun SubjectRowItem(subject: Subject, onClick: () -> Unit) {
         Color.Gray
     }
 
+
     Card(modifier = Modifier
         .fillMaxWidth()
         .clickable { onClick( )},
@@ -154,7 +372,7 @@ fun SubjectRowItem(subject: Subject, onClick: () -> Unit) {
     ) {
         Row(modifier = Modifier
             .fillMaxWidth()
-            .padding(16.dp),
+            .padding(start = 16.dp, top = 16.dp, end = 0.dp, bottom = 16.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
@@ -171,6 +389,7 @@ fun SubjectRowItem(subject: Subject, onClick: () -> Unit) {
                 Text(text = subject.name, style = MaterialTheme.typography.bodyLarge)
             }
 
+
             // right group
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -181,21 +400,30 @@ fun SubjectRowItem(subject: Subject, onClick: () -> Unit) {
                 val seconds = subject.timeSpentSeconds % 60
                 val formattedTime = String.format("%d:%02d:%02d", hours, minutes, seconds)
 
+
                 Text(
                     text = formattedTime,
                     style = MaterialTheme.typography.bodyLarge
                 )
 
-                // Placeholder for the 3-dots settings menu icon
-                Text(
-                    text = "⋮",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+
+                // edit subject button
+                Button(onClick = {println("Button clicked!")},
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color.Transparent,
+                        contentColor = MaterialTheme.colorScheme.onSurfaceVariant)
+                ) {
+                    Text(
+                        text = "⋮",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
         }
     }
 }
+
 
 // Preview
 @Preview(showBackground = true)
