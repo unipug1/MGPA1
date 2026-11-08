@@ -1,6 +1,5 @@
 package com.nyp.scaffoldingapp.ui.pages
 
-
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -34,17 +33,16 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 
-
 /*
 * Page 1 is the home page
 */
-
 
 @Composable
 fun HomePage(modifier: Modifier = Modifier, viewModel: HomeViewModel) {
     val uiState by viewModel.uiState.collectAsState()
     var showAddSubjectDialogue by rememberSaveable {mutableStateOf(false)}
-
+    var subjectToEdit by rememberSaveable {mutableStateOf<Subject?>(null)}
+    var subjectToDelete by rememberSaveable {mutableStateOf<Subject?>(null)}
 
     Surface(
         Modifier.fillMaxSize(),
@@ -82,9 +80,7 @@ fun HomePage(modifier: Modifier = Modifier, viewModel: HomeViewModel) {
                             style = MaterialTheme.typography.headlineMedium)
                     }
 
-
                     Spacer(Modifier.height(20.dp))
-
 
                     Card(Modifier.fillMaxWidth(),
                         shape = RectangleShape,
@@ -101,9 +97,7 @@ fun HomePage(modifier: Modifier = Modifier, viewModel: HomeViewModel) {
                             val formattedTime = String.format("%d:%02d:%02d", hours, minutes, seconds)
                             Text(text = formattedTime, style = MaterialTheme.typography.headlineLarge)
 
-
                             Spacer(Modifier.height(20.dp))
-
 
                             val restHours = state.currentRestTime / 3600
                             val restMinutes = (state.currentRestTime % 3600) / 60
@@ -113,15 +107,19 @@ fun HomePage(modifier: Modifier = Modifier, viewModel: HomeViewModel) {
                         }
                     }
 
-
                     HorizontalDivider(thickness = 2.dp)
                     // subject list section
                     SubjectListSection(subjects = state.subjects,
-                        onSubjectClick =  {selectedSubject ->
-                            // handle subject selection or navigation to timer tracking
+                        onSubjectClick = {selectedSubject ->
+                            // handle click for timer on the colored dot
+                        },
+                        onEdit = { selectedSubject ->
+                            subjectToEdit = selectedSubject
+                        },
+                        onDelete = { selectedSubject ->
+                            subjectToDelete = selectedSubject
                         }
                     )
-
 
                     Spacer(Modifier.weight(1f))
                     // add subject button
@@ -141,9 +139,10 @@ fun HomePage(modifier: Modifier = Modifier, viewModel: HomeViewModel) {
         }
     }
 
-
+    // add subject
     if (showAddSubjectDialogue) {
         AddSubjectDialog(
+            initialSubject = null,
             onDismiss = {showAddSubjectDialogue = false},
             onSave = {name, color ->
                 viewModel.addSubject(name, color)
@@ -151,38 +150,62 @@ fun HomePage(modifier: Modifier = Modifier, viewModel: HomeViewModel) {
             }
         )
     }
-}
 
+    // edit subject
+    subjectToEdit?.let { subject ->
+        AddSubjectDialog(
+            initialSubject = subject,
+            onDismiss = {subjectToEdit = null},
+            onSave = {updatedName, updatedColor ->
+                viewModel.updateSubject(subject.id, updatedName, updatedColor)
+            }
+        )
+    }
+
+    // delete subject
+    subjectToDelete?.let { deletedSubject ->
+        DeleteSubjectDialog(
+            subject = deletedSubject,
+            onDismiss = {subjectToDelete = null},
+            onConfirm = {
+                viewModel.deleteSubject(deletedSubject.id)
+                subjectToDelete = null
+            }
+        )
+    }
+}
 
 @Composable
 fun SubjectListSection(
     subjects: List<Subject>,
-    onSubjectClick: (Subject) -> Unit
+    onSubjectClick: (Subject) -> Unit,
+    onEdit: (Subject) -> Unit,
+    onDelete: (Subject) -> Unit
 ) {
-    LazyColumn(
-        modifier = Modifier
-            .fillMaxWidth()
+    LazyColumn(Modifier
+        .fillMaxWidth()
     ) {
         items(subjects, key = { it.id }) { subject ->
-            SubjectRowItem(subject = subject) {
-                onSubjectClick(subject)
-            }
+            SubjectRowItem(
+                subject = subject,
+                onClick = { onSubjectClick(subject) },
+                onEdit = { onEdit(subject) },
+                onDelete = { onDelete(subject) }
+            )
         }
     }
 }
 
-
 @Composable
 fun AddSubjectDialog(
+    initialSubject: Subject? = null, // null for add, non-null for edit
     onDismiss: () -> Unit,
     onSave: (String, String) -> Unit
 ) {
-    var subjectName by rememberSaveable {mutableStateOf("")}
+    var subjectName by rememberSaveable { mutableStateOf(initialSubject?.name ?: "") }
     val subjectNameFocusRequester = remember { FocusRequester() }
-    // default color grey
-    var subjectColor by rememberSaveable {mutableStateOf("#9E9E9E")}
-    var showSelectColorDialogue by rememberSaveable {mutableStateOf(false)}
-
+    var subjectColor by rememberSaveable { mutableStateOf(initialSubject?.colorHex ?: "#9E9E9E") }
+    var showSelectColorDialogue by rememberSaveable { mutableStateOf(false) }
 
     Dialog(onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false)) {
@@ -202,7 +225,7 @@ fun AddSubjectDialog(
                     }
                     Spacer(Modifier.weight(1f))
                     Text(
-                        text = "Subject name",
+                        text = if (initialSubject == null) "Subject name" else "Edit",
                         style = MaterialTheme.typography.titleMedium
                     )
                     Spacer(Modifier.weight(1f))
@@ -212,7 +235,6 @@ fun AddSubjectDialog(
                         Text("✓")
                     }
                 }
-
 
                 // subject name
                 Spacer(Modifier.height(30.dp))
@@ -232,7 +254,6 @@ fun AddSubjectDialog(
                     }
                 }
 
-
                 // subject color
                 Spacer(Modifier.padding(30.dp))
                 Card(modifier = Modifier
@@ -244,7 +265,6 @@ fun AddSubjectDialog(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween) {
                         Text("Select Color")
-
 
                         val parsedColor = try {
                             Color(subjectColor.toColorInt())
@@ -263,7 +283,6 @@ fun AddSubjectDialog(
         }
     }
 
-
     // add more colors later
     val availableColors = listOf(
         "#EA1E63", // red pink
@@ -274,10 +293,8 @@ fun AddSubjectDialog(
         "#9E9E9E" // gray
     )
 
-
     if (showSelectColorDialogue) {
         var tempSelectedColor by rememberSaveable {mutableStateOf(subjectColor)}
-
 
         Dialog(onDismissRequest = onDismiss) {
             Card(modifier = Modifier
@@ -290,7 +307,6 @@ fun AddSubjectDialog(
                 ) {
                     Spacer(Modifier.height(16.dp))
                     Text("Select color", style = MaterialTheme.typography.headlineSmall)
-
 
                     // color selection
                     LazyVerticalGrid(
@@ -308,7 +324,6 @@ fun AddSubjectDialog(
                                 Color.Gray
                             }
 
-
                             Box(Modifier
                                 .size(40.dp)
                                 .background(colorInt, shape = CircleShape)
@@ -321,7 +336,6 @@ fun AddSubjectDialog(
                             }
                         }
                     }
-
 
                     // buttons
                     Row(Modifier.fillMaxWidth()){
@@ -352,9 +366,62 @@ fun AddSubjectDialog(
     }
 }
 
+@Composable
+fun DeleteSubjectDialog(
+    subject: Subject,
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit
+) {
+    Dialog(
+        onDismissRequest = onDismiss
+    ) {
+        Card(Modifier
+            .fillMaxWidth()
+            .padding(16.dp)) {
+            Column(Modifier
+                .fillMaxWidth()
+            ) {
+                // title
+                Text("Delete subject", style = MaterialTheme.typography.headlineMedium)
+
+                // content
+                Text("Are you sure you want to delete '${subject.name}'? All To-Dos in this subject will be deleted.")
+                Spacer(Modifier.height(10.dp))
+                Text("Your study time logs won't be deleted.")
+
+                // buttons
+                Row(Modifier.fillMaxWidth()) {
+                    // 1: cancel
+                    Button(onClick = { onDismiss() },
+                        shape = RoundedCornerShape(10.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                            contentColor = MaterialTheme.colorScheme.onSurfaceVariant // ensures text is readable
+                        )) {
+                        Text("Cancel")
+                    }
+                    Spacer(Modifier.weight(1f))
+                    // 2: ok
+                    Button(onClick = { onConfirm() },
+                        shape = RoundedCornerShape(10.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                            contentColor = MaterialTheme.colorScheme.onSurfaceVariant // ensures text is readable
+                        )) {
+                        Text("OK")
+                    }
+                }
+            }
+        }
+    }
+}
+
 
 @Composable
-fun SubjectRowItem(subject: Subject, onClick: () -> Unit) {
+fun SubjectRowItem(subject: Subject,
+                   onClick: () -> Unit,
+                   onEdit: () -> Unit,
+                   onDelete: () -> Unit) {
     val subjectColor = try {
         Color(subject.colorHex.toColorInt())
     }
@@ -363,6 +430,7 @@ fun SubjectRowItem(subject: Subject, onClick: () -> Unit) {
         Color.Gray
     }
 
+    var showMenu by rememberSaveable {mutableStateOf(false)}
 
     Card(modifier = Modifier
         .fillMaxWidth()
@@ -389,7 +457,6 @@ fun SubjectRowItem(subject: Subject, onClick: () -> Unit) {
                 Text(text = subject.name, style = MaterialTheme.typography.bodyLarge)
             }
 
-
             // right group
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -400,30 +467,52 @@ fun SubjectRowItem(subject: Subject, onClick: () -> Unit) {
                 val seconds = subject.timeSpentSeconds % 60
                 val formattedTime = String.format("%d:%02d:%02d", hours, minutes, seconds)
 
-
                 Text(
                     text = formattedTime,
                     style = MaterialTheme.typography.bodyLarge
                 )
 
-
                 // edit subject button
-                Button(onClick = {println("Button clicked!")},
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color.Transparent,
-                        contentColor = MaterialTheme.colorScheme.onSurfaceVariant)
-                ) {
-                    Text(
-                        text = "⋮",
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                Box {
+                    Button(onClick = { showMenu = true },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color.Transparent,
+                            contentColor = MaterialTheme.colorScheme.onSurfaceVariant)
+                    ) {
+                        Text(
+                            text = "⋮",
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+
+                    DropdownMenu(expanded = showMenu,
+                        onDismissRequest = {showMenu = false})
+                    {
+                        DropdownMenuItem(
+                            text = {Text("Edit")},
+                            onClick = {
+                                showMenu = false
+                                onEdit() // edit
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = {Text("Delete")},
+                            onClick = {
+                                showMenu = false
+                                onDelete() // delete
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = {Text("Close")},
+                            onClick = {showMenu = false}
+                        )
+                    }
                 }
             }
         }
     }
 }
-
 
 // Preview
 @Preview(showBackground = true)

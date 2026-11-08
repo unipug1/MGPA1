@@ -1,13 +1,11 @@
 package com.nyp.scaffoldingapp.ui.pages
 
-
 data class Subject(
     val id: String,
     val name: String,
     val timeSpentSeconds: Long,
     val colorHex: String
 )
-
 
 sealed interface HomeUIState {
     object Loading : HomeUIState
