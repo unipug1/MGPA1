@@ -20,7 +20,7 @@ import androidx.compose.ui.unit.dp
 //fun Page1(modifier: Modifier = Modifier) = Placeholder("Page 1", modifier)
 
 //@Composable
-//fun Page2(modifier: Modifier = Modifier) = Placeholder("Page 2", modifier)
+fun Page2(modifier: Modifier = Modifier) = Placeholder("Page 2", modifier)
 
 @Composable
 fun Page3(modifier: Modifier = Modifier) = Placeholder("Page 3", modifier)
