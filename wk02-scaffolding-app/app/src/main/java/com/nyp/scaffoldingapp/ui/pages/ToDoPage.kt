@@ -60,8 +60,14 @@ import kotlin.time.ExperimentalTime
 //@Composable
 
 
+
 @Composable
-fun TasksDisplay(subjects: ToDoSubjects, modifier: Modifier, viewModel : SubjectViewModel){
+fun TasksDisplay(subjects: ToDoSubjects, modifier: Modifier,
+                 viewModel : SubjectViewModel,
+                 onEditSubject: (Subject)->Unit,
+                 onAddTask: (Subject)->Unit,
+                 onEditTask: (Task)-> Unit,
+                 onDeleteTask: (Task)->Unit){
 
 
     Column(modifier) {
@@ -82,11 +88,11 @@ fun TasksDisplay(subjects: ToDoSubjects, modifier: Modifier, viewModel : Subject
                 Text(subject.name, color = subject.color)
                 Spacer(Modifier.width(15.dp))
                 val checkList = subject.tasks
-                Button(onClick = { viewModel.AddTask("Test", LocalDateTime.now(), subject)}, modifier = Modifier
+                Button(onClick = {onAddTask(subject)}, modifier = Modifier
                     .size(20.dp),shape = RoundedCornerShape(3.dp), colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),border = BorderStroke(color = Color.White, width = 2.dp), contentPadding = PaddingValues(0.dp)){Text("+")}
                 Spacer(Modifier.width(2.dp))
                 Button(
-                    onClick = {},
+                    onClick = {onEditSubject(subject)},
                     elevation = null,
                     modifier = Modifier
                         .width(15.dp)
@@ -94,7 +100,7 @@ fun TasksDisplay(subjects: ToDoSubjects, modifier: Modifier, viewModel : Subject
                     contentPadding = PaddingValues(0.dp),
                     colors = ButtonDefaults.buttonColors(
                         containerColor = Color.Transparent,
-                        contentColor = Color.Black
+                        contentColor = Color.White
                     )
                 ) { Text(":") }
 
@@ -132,7 +138,7 @@ fun TasksDisplay(subjects: ToDoSubjects, modifier: Modifier, viewModel : Subject
                     }
 
                     Spacer(Modifier.width(10.dp))
-                    DisplayTask(subject.tasks[i - 1].task, Color.Black)
+                    DisplayTask(subject.tasks[i - 1].task, Color.Black, onEditTask = onEditTask, onDeleteTask = onDeleteTask)
                 }
             }
             Spacer(Modifier.height(15.dp))
@@ -143,7 +149,13 @@ fun TasksDisplay(subjects: ToDoSubjects, modifier: Modifier, viewModel : Subject
 
 }
 @Composable
-fun DisplayTask(task : Task, color: Color, modifier: Modifier = Modifier){
+fun DisplayTask(task : Task,
+                color: Color,
+                modifier: Modifier = Modifier,
+                onEditTask: (Task)->Unit,
+                onDeleteTask: (Task)->Unit){
+
+    var menuTask : Task? by remember { mutableStateOf(null) }
     Row(modifier){
 
         Text(task.name, color = color)
@@ -160,9 +172,26 @@ fun DisplayTask(task : Task, color: Color, modifier: Modifier = Modifier){
                 contentPadding = PaddingValues(0.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = Color.Transparent,
-                    contentColor = Color.Black
+                    contentColor = Color.White
                 )
-            ) { Text(":") }
+            ) { Text(":", style = MaterialTheme.typography.headlineMedium) }
+            DropdownMenu(
+                expanded = menuTask == task,
+                onDismissRequest = {menuTask = null}
+            ) {
+                DropdownMenuItem(
+                    text = {Text("Edit")},
+                    onClick = {onEditTask(task)}
+                )
+                DropdownMenuItem(
+                    text = {Text("Delete")},
+                    onClick = {onDeleteTask(task)}
+                )
+                DropdownMenuItem(
+                    text = {Text("Close")},
+                    onClick = onDismissRequest
+                )
+            }
             Spacer(Modifier.width(4.dp))
         }
     }
@@ -216,7 +245,8 @@ fun DatePickerDocked(onSelect : (LocalDateTime)-> Unit){
 }
 
 @Composable
-fun SelectColor(colors : List<Color>, shape : Shape = CircleShape) : Color?{
+fun SelectColor(colors : List<Color>,
+                shape : Shape = CircleShape) : Color?{
     var selectedColor : Color? by remember { mutableStateOf(null) }
 
     Row() {
@@ -231,7 +261,10 @@ fun SelectColor(colors : List<Color>, shape : Shape = CircleShape) : Color?{
 }
 
 @Composable
-fun EditTaskDialog(task: Task?, subject: Subject, onDismiss: ()->Unit, subjectViewModel: SubjectViewModel) {
+fun EditTaskDialog(task: Task? = null,
+                   subject: Subject,
+                   onDismiss: ()->Unit,
+                   subjectViewModel: SubjectViewModel) {
     Dialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false)
@@ -261,7 +294,7 @@ fun EditTaskDialog(task: Task?, subject: Subject, onDismiss: ()->Unit, subjectVi
                 Row(Modifier.fillMaxWidth()) {
                     Spacer(Modifier.weight(1f))
                     Button(
-                        colors = ButtonDefaults.buttonColors(containerColor = Color.Black),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color.White),
                         onClick = {
 
                             if (task != null)
@@ -287,8 +320,8 @@ fun EditTaskDialog(task: Task?, subject: Subject, onDismiss: ()->Unit, subjectVi
 }
 
 
-    @Composable
-    fun EditSubjectDialog(
+@Composable
+fun EditSubjectDialog(
     subject: Subject? = null,
     onDismiss: () -> Unit,
     subjectViewModel: SubjectViewModel
@@ -346,7 +379,7 @@ fun EditTaskDialog(task: Task?, subject: Subject, onDismiss: ()->Unit, subjectVi
                         onClick = {
 
                             if (subject != null)
-                                subjectViewModel.EditSubject(subject, selectedColor)
+                                subjectViewModel.EditSubject(subject, selectedColor, name)
                             else {
                                 subjectViewModel.AddSubject(
                                     name,
@@ -367,17 +400,24 @@ fun EditTaskDialog(task: Task?, subject: Subject, onDismiss: ()->Unit, subjectVi
 }
 
 
-    @Composable
+@Composable
 fun ToDoPage(modifier: Modifier) {
     val viewModel: SubjectViewModel = viewModel()
 
     var addSubjScreen by remember { mutableStateOf(false)}
+
+    data class SubjScreenData(
+        var active: Boolean = false,
+        var subject : Subject = Subject()
+    )
     data class TaskScreenData(
         var active: Boolean = false,
-        var subject : Subject
+        var task : Task = Task(name = "Default", deadline = LocalDateTime.now())
     )
 
-    var addTaskScreen by remember { mutableStateOf(false) }
+    var addTaskScreen by remember { mutableStateOf(SubjScreenData()) }
+    var editTaskScreen by remember { mutableStateOf(TaskScreenData()) }
+    var editSubjectScreen by remember { mutableStateOf(SubjScreenData()) }
 
     val state by viewModel.subjects.collectAsStateWithLifecycle()
 
@@ -434,13 +474,26 @@ fun ToDoPage(modifier: Modifier) {
         }
         Spacer(Modifier.height(5.dp))
 
-        TasksDisplay(subjects = state, modifier, viewModel)
+        TasksDisplay(subjects = state, modifier, viewModel, onEditTask = {task: Task -> editTaskScreen = TaskScreenData(task = task, active = true )}, onAddTask = {subj : Subject -> addTaskScreen = SubjScreenData(subject = subj, active = true )}, onEditSubject = { subj: Subject -> editSubjectScreen = SubjScreenData(true, subj)} )
     }
     if (addSubjScreen) {
         EditSubjectDialog(
             onDismiss = { addSubjScreen = false },
             subjectViewModel = viewModel
         )
+    }
+    if (editSubjectScreen.active){
+        EditSubjectDialog(
+            onDismiss = { editSubjectScreen.active = false },
+            subjectViewModel = viewModel,
+            subject = editSubjectScreen.subject
+        )
+    }
+    if (addTaskScreen.active){
+        EditTaskDialog(onDismiss = {addTaskScreen.active = false},
+            subjectViewModel = viewModel,
+            subject = addTaskScreen.subject,
+            )
     }
 
 }

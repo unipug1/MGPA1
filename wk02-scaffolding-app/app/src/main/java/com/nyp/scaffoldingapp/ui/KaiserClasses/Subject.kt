@@ -97,8 +97,8 @@ class SubjectViewModel : ViewModel(){
             val updatedSubjects = currentState.subjects.map{
                 thisSubject ->
                 if (subject.id == thisSubject.id){
-                    val newName = if (name != null) name else thisSubject.name
-                    val newColor = if (color != null) color else thisSubject.color
+                    val newName = name?.let{name}?:subject.name
+                    val newColor = color?.let{color}?:subject.color
                     thisSubject.copy(name = newName, color = newColor)
                 }
                 else {
