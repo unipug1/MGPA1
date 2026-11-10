@@ -69,7 +69,6 @@ fun AppScaffold() {
             when (selectedTab) {
                 Tab.PAGE1 -> HomePage(Modifier, HomeViewModel())
                 //Tab.PAGE2 -> GroupsPage(Modifier)
-                // Tab.PAGE2 -> Page2()
                 Tab.PAGE2 -> Page2()
                 Tab.PAGE3 -> Page3()
                 Tab.PAGE4 -> Page4()
