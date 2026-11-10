@@ -30,22 +30,26 @@ import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.util.UUID
 
 data class Task(
     var name : String,
-    var deadline : LocalDateTime
+    var deadline : LocalDateTime,
+    val id: String = UUID.randomUUID().toString()
 
 )
 
 data class Subject(
     var name : String = "Default",
     var color: Color = Color.White,
-    val tasks : List<ToDoTask> = mutableListOf<ToDoTask>()
+    val tasks : List<ToDoTask> = mutableListOf<ToDoTask>(),
+    val id: String = UUID.randomUUID().toString()
 )
 
 data class ToDoTask(
     val task : Task,
-    var finished : Boolean
+    var finished : Boolean,
+    val id: String = UUID.randomUUID().toString()
 )
 
 data class ToDoSubjects(
@@ -53,8 +57,8 @@ data class ToDoSubjects(
 )
 
 fun DateTimeFormat(dateTime: LocalDateTime) : String{
-    //val formatter = DateTimeFormatter.ofPattern("yyyy-mm-dd HH-mm-ss", Locale.getDefault())
-    return "1 Jan 23:59"
+    val formatter = DateTimeFormatter.ofPattern("yyyy-mm-dd HH-mm-ss", Locale.getDefault())
+    return dateTime.format(formatter)
 }
 
 class SubjectViewModel : ViewModel(){
@@ -72,7 +76,7 @@ class SubjectViewModel : ViewModel(){
         _subjects.update { currentState ->
             val updatedSubjects = currentState.subjects.map { subject ->
                 val updatedTasks = subject.tasks.map { toDoTask ->
-                    if (toDoTask.task.name == task.task.name) {
+                    if (toDoTask.task.id == task.task.id) {
                         toDoTask.copy(finished = finished)
                         //toDoTask
                     } else {
@@ -85,12 +89,32 @@ class SubjectViewModel : ViewModel(){
         }
     }
 
+    fun EditTask(task: Task, subject: Subject, name: String, date: LocalDateTime){
+
+    }
+    fun EditSubject(subject : Subject, color : Color? = null, name : String? = null){
+        _subjects.update { currentState ->
+            val updatedSubjects = currentState.subjects.map{
+                thisSubject ->
+                if (subject.id == thisSubject.id){
+                    val newName = if (name != null) name else thisSubject.name
+                    val newColor = if (color != null) color else thisSubject.color
+                    thisSubject.copy(name = newName, color = newColor)
+                }
+                else {
+                    thisSubject
+                }
+            }
+            ToDoSubjects(subjects = updatedSubjects)
+        }
+    }
+
     fun AddTask(name : String, deadline: LocalDateTime, subject : Subject) {
         val newTask = Task(name, deadline)
         val newToDoTask = ToDoTask(newTask, false)
 
 
-        _subjects.update { currentState -> ToDoSubjects((currentState.subjects.map { thisSubject -> if (thisSubject.name == subject.name) {
+        _subjects.update { currentState -> ToDoSubjects((currentState.subjects.map { thisSubject -> if (thisSubject.id == subject.id) {
             thisSubject.copy(tasks = thisSubject.tasks + newToDoTask)
         } else thisSubject }) ) }
 
