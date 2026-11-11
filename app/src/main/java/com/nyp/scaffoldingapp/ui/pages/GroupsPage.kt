@@ -37,6 +37,7 @@ import androidx.compose.runtime.saveable.rememberSerializable
 import androidx.compose.ui.layout.Remeasurement
 import androidx.compose.ui.res.stringArrayResource
 import kotlinx.coroutines.selects.select
+import kotlin.math.exp
 
 
 @Composable
@@ -178,12 +179,48 @@ private fun GroupNotificationSettingsPage(
     onBack: () -> Unit
 )
 {
+    var expanded by rememberSaveable {
+        mutableStateOf(false)
+    }
+    var menuOpened by rememberSaveable {
+        mutableStateOf(false)
+    }
+    var options = listOf("On", "Off while studying", "Off")
+    var selectedOption by rememberSaveable {
+        mutableStateOf(options[0])
+    }
+
     Column(Modifier.fillMaxSize()) {
         Row(Modifier.fillMaxWidth()) {
             Button(onClick = onBack) {
                 Text("<")
             }
             Text("Group notification settings")
+        }
+
+        Row(Modifier.fillMaxWidth()) {
+            Text("Group chat")
+            Box(
+            ) {
+                TextButton(onClick = { expanded = true }) {
+                    Text(selectedOption)
+                }
+
+                DropdownMenu(
+                    expanded = expanded,
+                    onDismissRequest = { expanded = false }
+                ) {
+                    options.forEach { option ->
+                        DropdownMenuItem(
+                            text = { Text(option) },
+                            onClick = {
+                                selectedOption = option
+                                expanded = false
+                            }
+                        )
+                    }
+                }
+            }
         }
     }
 }
