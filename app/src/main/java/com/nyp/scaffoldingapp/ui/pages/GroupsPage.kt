@@ -124,37 +124,66 @@ private fun GroupChatPage(group: Group,
     var userInput by rememberSaveable {
         mutableStateOf("")
     }
+    var showNotificationSettings by rememberSaveable {
+        mutableStateOf(false)
+    }
 
+    if (showNotificationSettings) {
+        GroupNotificationSettingsPage(
+            onBack = {showNotificationSettings = false}
+        )
+    }
+    else {
+        Column(Modifier.fillMaxSize()) {
+            Row(Modifier.fillMaxWidth()) {
+                Button(onClick = onBack) {
+                    Text("<")
+                }
+                Text(group.groupName)
+                Spacer(Modifier.weight(1f))
+                Button(onClick = {showNotificationSettings = true}) {
+                    Text("Bell")
+                }
+            }
+
+            // render messages below - change UI later
+            LazyColumn(Modifier.weight(1f)) {
+                items(groupChatMessages, key = {it.id}) { chat ->
+                    Text("${chat.messageText} by ${chat.senderName}")
+                }
+            }
+
+            // user inputs
+            Row() {
+                OutlinedTextField(
+                    value = userInput,
+                    onValueChange = {userInput = it},
+                    modifier = Modifier.weight(1f),
+                    placeholder = {Text("Message...")},
+                )
+
+                // send button
+                Button(onClick = {onSend(userInput)
+                    userInput = "" },
+                    enabled = userInput.isNotBlank()) {
+                    Text("↑")
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun GroupNotificationSettingsPage(
+    onBack: () -> Unit
+)
+{
     Column(Modifier.fillMaxSize()) {
         Row(Modifier.fillMaxWidth()) {
             Button(onClick = onBack) {
-                Text("Back")
+                Text("<")
             }
-            Text(group.groupName)
-        }
-
-        // render messages below - change UI later
-        LazyColumn(Modifier.weight(1f)) {
-            items(groupChatMessages, key = {it.id}) { chat ->
-                Text("${chat.messageText} by ${chat.senderName}")
-            }
-        }
-
-        // user inputs
-        Row() {
-            OutlinedTextField(
-                value = userInput,
-                onValueChange = {userInput = it},
-                modifier = Modifier.weight(1f),
-                placeholder = {Text("Message...")},
-                )
-
-            // send button
-            Button(onClick = {onSend(userInput)
-                userInput = "" },
-                enabled = userInput.isNotBlank()) {
-                Text("↑")
-            }
+            Text("Group notification settings")
         }
     }
 }
