@@ -57,7 +57,7 @@ data class ToDoSubjects(
 )
 
 fun DateTimeFormat(dateTime: LocalDateTime) : String{
-    val formatter = DateTimeFormatter.ofPattern("yyyy-mm-dd HH-mm-ss", Locale.getDefault())
+    val formatter = DateTimeFormatter.ofPattern("yyyy-mm-dd HH-mm", Locale.getDefault())
     return dateTime.format(formatter)
 }
 
@@ -70,6 +70,31 @@ class SubjectViewModel : ViewModel(){
 
 
         _subjects.update { currentState -> currentState.copy((currentState.subjects + newSubj)) }
+    }
+
+    fun DeleteTask(task: Task){
+        _subjects.update{ currentState ->
+            currentState.copy(subjects = currentState.subjects.map{
+                subject -> subject.copy(tasks = subject.tasks.filterNot{it.task.id == task.id})
+            })
+
+            //ToDoSubjects(subjects = updatedSubjects)
+        }
+    }
+
+    fun DeleteSubject(subject: Subject){
+        _subjects.update{ currentState ->
+            var subjToDelete: Subject? = null
+            val updatedSubjects = currentState.subjects.toMutableList()
+            for (i in 1..updatedSubjects.size)
+                if (subject.id == updatedSubjects[i - 1].id) {
+                    subjToDelete = updatedSubjects[i - 1]
+                }
+
+            updatedSubjects.remove(subjToDelete)
+
+            ToDoSubjects(subjects = updatedSubjects)
+        }
     }
 
     fun SetTaskFinished(task: ToDoTask, finished: Boolean){
@@ -89,7 +114,7 @@ class SubjectViewModel : ViewModel(){
         }
     }
 
-    fun EditTask(task: Task, subject: Subject, name: String, date: LocalDateTime){
+    fun EditTask(task: Task, name: String, date: LocalDateTime){
 
     }
     fun EditSubject(subject : Subject, color : Color? = null, name : String? = null){

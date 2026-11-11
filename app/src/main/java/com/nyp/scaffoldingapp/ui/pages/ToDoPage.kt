@@ -1,5 +1,7 @@
 package com.nyp.scaffoldingapp.ui.pages
 
+import android.widget.Space
+import android.widget.TimePicker
 import java.time.Instant
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.runtime.Composable
@@ -25,6 +27,7 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.text.style.LineHeightStyle
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -65,10 +68,11 @@ import kotlin.time.ExperimentalTime
 fun TasksDisplay(subjects: ToDoSubjects, modifier: Modifier,
                  viewModel : SubjectViewModel,
                  onEditSubject: (Subject)->Unit,
+                 onDeleteSubject: (Subject)->Unit,
                  onAddTask: (Subject)->Unit,
                  onEditTask: (Task)-> Unit,
                  onDeleteTask: (Task)->Unit){
-
+    var menuSubject by remember { mutableStateOf<Subject?>(null) }
 
     Column(modifier) {
         for (f in 1..subjects.subjects.size){
@@ -85,24 +89,43 @@ fun TasksDisplay(subjects: ToDoSubjects, modifier: Modifier,
                     .height(15.dp)
                     .background(subject.color)){}
                 Spacer(Modifier.width(10.dp))
-                Text(subject.name, color = subject.color)
-                Spacer(Modifier.width(15.dp))
-                val checkList = subject.tasks
+                Text(subject.name, color = subject.color, style = MaterialTheme.typography.headlineMedium, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                Spacer(Modifier.width(30.dp))
                 Button(onClick = {onAddTask(subject)}, modifier = Modifier
                     .size(20.dp),shape = RoundedCornerShape(3.dp), colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),border = BorderStroke(color = Color.White, width = 2.dp), contentPadding = PaddingValues(0.dp)){Text("+")}
                 Spacer(Modifier.width(2.dp))
-                Button(
-                    onClick = {onEditSubject(subject)},
-                    elevation = null,
-                    modifier = Modifier
-                        .width(15.dp)
-                        .height(20.dp),
-                    contentPadding = PaddingValues(0.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color.Transparent,
-                        contentColor = Color.White
-                    )
-                ) { Text(":") }
+                Row() {
+                    Button(
+                        onClick = { menuSubject = subject },
+                        elevation = null,
+                        modifier = Modifier
+                            .width(15.dp)
+                            .height(20.dp),
+                        contentPadding = PaddingValues(0.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color.Transparent,
+                            contentColor = Color.White
+                        )
+                    ) { Text(":") }
+                    Spacer(Modifier.width(2.dp))
+                    DropdownMenu(
+                        expanded = menuSubject == subject,
+                        onDismissRequest = { menuSubject = null }
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("Edit") },
+                            onClick = { onEditSubject(subject) }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Delete") },
+                            onClick = { onDeleteSubject(subject) }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Close") },
+                            onClick = { menuSubject = null }
+                        )
+                    }
+                }
 
             }
             for (i in 1..subject.tasks.size) {
@@ -158,13 +181,13 @@ fun DisplayTask(task : Task,
     var menuTask : Task? by remember { mutableStateOf(null) }
     Row(modifier){
 
-        Text(task.name, color = color)
+        Text(task.name, color = color, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
         Spacer(Modifier.weight(1f))
         Row() {
             Text(DateTimeFormat(task.deadline))
             Spacer(Modifier.width(2.dp))
             Button(
-                onClick = {},
+                onClick = {menuTask = task},
                 elevation = null,
                 modifier = Modifier
                     .width(15.dp)
@@ -174,25 +197,27 @@ fun DisplayTask(task : Task,
                     containerColor = Color.Transparent,
                     contentColor = Color.White
                 )
-            ) { Text(":", style = MaterialTheme.typography.headlineMedium) }
-            DropdownMenu(
-                expanded = menuTask == task,
-                onDismissRequest = {menuTask = null}
             ) {
-                DropdownMenuItem(
-                    text = {Text("Edit")},
-                    onClick = {onEditTask(task)}
-                )
-                DropdownMenuItem(
-                    text = {Text("Delete")},
-                    onClick = {onDeleteTask(task)}
-                )
-                DropdownMenuItem(
-                    text = {Text("Close")},
-                    onClick = onDismissRequest
-                )
+                Text(":", color = Color.Black)
+                DropdownMenu(
+                    expanded = menuTask == task,
+                    onDismissRequest = { menuTask = null }
+                ) {
+                    DropdownMenuItem(
+                        text = { Text("Edit") },
+                        onClick = { onEditTask(task) }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Delete") },
+                        onClick = { onDeleteTask(task) }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Close") },
+                        onClick = { menuTask = null }
+                    )
+                }
+                Spacer(Modifier.width(4.dp))
             }
-            Spacer(Modifier.width(4.dp))
         }
     }
 }
@@ -206,6 +231,26 @@ fun ConvertMilisToDate(millis : Long) : String{
 fun ConvertMilisToLocalDateTime(millis : Long) : LocalDateTime{
     val localDateTime = LocalDateTime.ofInstant(Instant.ofEpochMilli(millis), ZoneId.systemDefault())
     return localDateTime
+}
+
+
+
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun TimePicker(): TimePickerState{
+    val currentTime = LocalTime.now()
+    val timePickerState = rememberTimePickerState(
+        initialHour = currentTime.hour,
+        initialMinute = currentTime.minute,
+        is24Hour = true
+    )
+    Column(modifier = Modifier.fillMaxWidth()){
+        TimeInput(
+            state = timePickerState
+        )
+    }
+    return timePickerState
 }
 
 
@@ -245,6 +290,83 @@ fun DatePickerDocked(onSelect : (LocalDateTime)-> Unit){
 }
 
 @Composable
+fun DeleteTaskDialog(task: Task,
+                 onDismiss: ()->Unit,
+                     viewModel: SubjectViewModel){
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth(0.95f)
+                .fillMaxHeight(0.6f),
+            shape = RoundedCornerShape(20.dp)
+        ) {
+            Column() {
+                Spacer(Modifier.weight(1f))
+                Text("Do you want to delete ${task.name}?", style = MaterialTheme.typography.headlineMedium)
+                Spacer(Modifier.height(15.dp))
+                Row(modifier = Modifier.fillMaxWidth()){
+                    Spacer(Modifier.weight(1f))
+                    Button(onClick = {
+                        viewModel.DeleteTask(task)
+                        onDismiss()
+                    }, colors = ButtonDefaults.buttonColors(containerColor = Color.Red, contentColor = Color.White)){
+                        Text("Delete", style = MaterialTheme.typography.headlineSmall)
+                    }
+                    Spacer(Modifier.weight(1f))
+                    Button(onClick = onDismiss, colors = ButtonDefaults.buttonColors(containerColor = Color.LightGray, contentColor = Color.Black)){
+                        Text("Cancel", style = MaterialTheme.typography.headlineSmall)
+                    }
+                    Spacer(Modifier.weight(1f))
+
+                }
+                Spacer(Modifier.weight(1f))
+            }
+        }
+    }
+}
+
+@Composable
+fun DeleteSubjDialog(subject: Subject,
+                     onDismiss: ()->Unit,
+                     viewModel: SubjectViewModel){
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth(0.95f)
+                .fillMaxHeight(0.6f),
+            shape = RoundedCornerShape(20.dp)
+        ) {
+            Column() {
+                Spacer(Modifier.weight(1f))
+                Text("Do you want to delete ${subject.name}?", style = MaterialTheme.typography.headlineMedium)
+                Spacer(Modifier.height(15.dp))
+                Row(modifier = Modifier.fillMaxWidth()){
+                    Spacer(Modifier.weight(1f))
+                    Button(onClick = {
+                        viewModel.DeleteSubject(subject)
+                        onDismiss()
+                    }, colors = ButtonDefaults.buttonColors(containerColor = Color.Red, contentColor = Color.White)){
+                        Text("Delete", style = MaterialTheme.typography.headlineSmall)
+                    }
+                    Spacer(Modifier.weight(1f))
+                    Button(onClick = onDismiss, colors = ButtonDefaults.buttonColors(containerColor = Color.LightGray, contentColor = Color.Black)){
+                        Text("Cancel", style = MaterialTheme.typography.headlineSmall)
+                    }
+                    Spacer(Modifier.weight(1f))
+                }
+                Spacer(Modifier.weight(1f))
+            }
+        }
+    }
+}
+
+@Composable
 fun SelectColor(colors : List<Color>,
                 shape : Shape = CircleShape) : Color?{
     var selectedColor : Color? by remember { mutableStateOf(null) }
@@ -260,11 +382,13 @@ fun SelectColor(colors : List<Color>,
     return selectedColor
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun EditTaskDialog(task: Task? = null,
-                   subject: Subject,
-                   onDismiss: ()->Unit,
-                   subjectViewModel: SubjectViewModel) {
+fun AddTaskDialog(
+
+    subject: Subject,
+    onDismiss: ()->Unit,
+    subjectViewModel: SubjectViewModel) {
     Dialog(
         onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false)
@@ -280,8 +404,12 @@ fun EditTaskDialog(task: Task? = null,
                     .fillMaxWidth()
                     .padding(16.dp)
             ) {
-                var name by remember { mutableStateOf(if (task != null) task.name else "Subject Name") }
+                var name by remember { mutableStateOf( "Subject Name") }
                 var date by rememberSaveable { mutableStateOf(LocalDateTime.now()) }
+//                var time by rememberSaveable { mutableStateOf<TimePicker?>(null) }
+//
+                var timePickerState: TimePickerState
+
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
@@ -291,21 +419,82 @@ fun EditTaskDialog(task: Task? = null,
 
                 Spacer(Modifier.height(15.dp))
                 DatePickerDocked({ date = it })
+                timePickerState = TimePicker()
                 Row(Modifier.fillMaxWidth()) {
                     Spacer(Modifier.weight(1f))
                     Button(
                         colors = ButtonDefaults.buttonColors(containerColor = Color.White),
                         onClick = {
 
-                            if (task != null)
-                                subjectViewModel.EditTask(task, subject, name, date)
-                            else {
-                                subjectViewModel.AddTask(
-                                    name,
-                                    date,
-                                    subject
+                            subjectViewModel.AddTask(
+                                name,
+                                date.withHour(timePickerState.hour).withMinute(timePickerState.minute),
+                                subject
                                 )
-                            }
+                            onDismiss()
+
+                        }) { Text("Confirm", color = Color.Black) }
+                    Spacer(Modifier.weight(1f))
+                    Button(onClick = onDismiss) { Text("Cancel") }
+                    Spacer(Modifier.weight(1f))
+
+                }
+            }
+        }
+    }
+}
+
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun EditTaskDialog(
+    task: Task,
+    onDismiss: ()->Unit,
+    subjectViewModel: SubjectViewModel) {
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .fillMaxHeight(0.95f),
+            shape = RoundedCornerShape(20.dp)
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp)
+            ) {
+                var name by remember { mutableStateOf( task.name) }
+                var date by rememberSaveable { mutableStateOf(task.deadline) }
+
+                var timePickerState : TimePickerState
+
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text("Task Name") },
+                    singleLine = true
+                )
+
+
+                DatePickerDocked({ date = it })
+                timePickerState = TimePicker()
+
+                Spacer(Modifier.height(15.dp))
+                DatePickerDocked({ date = it })
+                Row(Modifier.fillMaxWidth()) {
+                    Spacer(Modifier.weight(1f))
+                    Button(
+                        colors = ButtonDefaults.buttonColors(containerColor = Color.White),
+                        onClick = {
+
+                            subjectViewModel.EditTask(
+                                task,
+                                name,
+                                date.withHour(timePickerState.hour).withMinute(timePickerState.minute)
+                            )
                             onDismiss()
 
                         }) { Text("Confirm", color = Color.Black) }
@@ -321,7 +510,7 @@ fun EditTaskDialog(task: Task? = null,
 
 
 @Composable
-fun EditSubjectDialog(
+fun SubjectDialog(
     subject: Subject? = null,
     onDismiss: () -> Unit,
     subjectViewModel: SubjectViewModel
@@ -406,18 +595,11 @@ fun ToDoPage(modifier: Modifier) {
 
     var addSubjScreen by remember { mutableStateOf(false)}
 
-    data class SubjScreenData(
-        var active: Boolean = false,
-        var subject : Subject = Subject()
-    )
-    data class TaskScreenData(
-        var active: Boolean = false,
-        var task : Task = Task(name = "Default", deadline = LocalDateTime.now())
-    )
-
-    var addTaskScreen by remember { mutableStateOf(SubjScreenData()) }
-    var editTaskScreen by remember { mutableStateOf(TaskScreenData()) }
-    var editSubjectScreen by remember { mutableStateOf(SubjScreenData()) }
+    var addTaskScreen by remember { mutableStateOf<Subject?>(null) }
+    var editTaskScreen by remember { mutableStateOf<Task?>(null) }
+    var editSubjectScreen by remember { mutableStateOf<Subject?>(null) }
+    var deleteTaskScreen by remember { mutableStateOf<Task?>(null) }
+    var deleteSubjScreen by remember {mutableStateOf<Subject?>(null) }
 
     val state by viewModel.subjects.collectAsStateWithLifecycle()
 
@@ -474,27 +656,43 @@ fun ToDoPage(modifier: Modifier) {
         }
         Spacer(Modifier.height(5.dp))
 
-        TasksDisplay(subjects = state, modifier, viewModel, onEditTask = {task: Task -> editTaskScreen = TaskScreenData(task = task, active = true )}, onAddTask = {subj : Subject -> addTaskScreen = SubjScreenData(subject = subj, active = true )}, onEditSubject = { subj: Subject -> editSubjectScreen = SubjScreenData(true, subj)} )
+        TasksDisplay(subjects = state, modifier,
+            viewModel,
+            onEditTask = {task: Task -> editTaskScreen = task},
+            onAddTask = {subj : Subject -> addTaskScreen = subj},
+            onEditSubject = { subj: Subject -> editSubjectScreen = subj },
+            onDeleteSubject = { subj: Subject -> deleteSubjScreen = subj},
+            onDeleteTask = { task : Task -> deleteTaskScreen = task})
     }
     if (addSubjScreen) {
-        EditSubjectDialog(
+        SubjectDialog(
             onDismiss = { addSubjScreen = false },
             subjectViewModel = viewModel
         )
     }
-    if (editSubjectScreen.active){
-        EditSubjectDialog(
-            onDismiss = { editSubjectScreen.active = false },
-            subjectViewModel = viewModel,
-            subject = editSubjectScreen.subject
-        )
+    editSubjectScreen?.let{SubjectDialog(
+        onDismiss = { editSubjectScreen = null },
+        subjectViewModel = viewModel,
+        subject = it
+    )}
+    addTaskScreen?.let{AddTaskDialog(onDismiss = { addTaskScreen = null},
+        subjectViewModel = viewModel,
+        subject = it,
+    )}
+    deleteTaskScreen?.let{DeleteTaskDialog(task = it,
+        onDismiss = { deleteTaskScreen = null},
+        viewModel)}
+    editTaskScreen?.let{
+        EditTaskDialog(task = it,
+            onDismiss = { editTaskScreen = null },
+            viewModel)
     }
-    if (addTaskScreen.active){
-        EditTaskDialog(onDismiss = {addTaskScreen.active = false},
-            subjectViewModel = viewModel,
-            subject = addTaskScreen.subject,
-            )
+    deleteSubjScreen?.let{
+        DeleteSubjDialog(it,
+            onDismiss = {deleteSubjScreen = null },
+            viewModel)
     }
+
 
 }
 
