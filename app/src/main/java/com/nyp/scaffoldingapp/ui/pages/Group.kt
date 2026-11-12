@@ -1,5 +1,6 @@
 package com.nyp.scaffoldingapp.ui.pages
 
+
 data class Group(
     val groupName: String,
     val groupID: String,
@@ -13,12 +14,32 @@ data class Group(
     val privacyStatus: String
 )
 
+
 // for chat messages
 data class ChatMessage(
     val id: String,
     val senderName: String,
     val messageText: String
 )
+
+
+// for chat notification settings
+data class GroupNotificationPreferences(
+    val groupChat: String = "On",
+    val notice: String = "On",
+    val comment: String = "On",
+    val newPost: String = "On"
+)
+
+
+// for group notifications
+data class GroupNotification(
+    val id: String,
+    val groupName: String,
+    val message: String,
+    val timeLabel: String
+)
+
 
 // add profile pic later + allowed apps?
 data class Member(
@@ -32,11 +53,13 @@ data class Member(
     val allowedApps: List<String>
 )
 
+
 data class AttendanceRecord(
     val date: String,
     val studiedDays: List<Boolean>,
     val attendancePercentage: Float
 )
+
 
 data class RankingItem(
     val name: String,
