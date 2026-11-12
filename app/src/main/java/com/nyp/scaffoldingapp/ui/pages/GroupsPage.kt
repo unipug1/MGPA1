@@ -24,22 +24,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.window.Dialog
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.remember
-import androidx.compose.ui.focus.FocusRequester
-import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.window.DialogProperties
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.runtime.movableContentOf
-import androidx.compose.runtime.saveable.rememberSerializable
-import androidx.compose.ui.graphics.vector.Group
-import androidx.compose.ui.layout.Remeasurement
-import androidx.compose.ui.res.stringArrayResource
-import kotlinx.coroutines.selects.select
-import kotlin.math.exp
 
 @Composable
 fun GroupsPage(modifier: Modifier = Modifier, viewModel: GroupViewModel) {
@@ -503,6 +488,12 @@ private fun GroupsDiscoverPage(modifier: Modifier = Modifier,
     var showCreateGroup by rememberSaveable {
         mutableStateOf(false)
     }
+    var selectedDiscoverGroupID by rememberSaveable {
+        mutableStateOf<String?>(null)
+    }
+    val selectedDiscoverGroup = groups.firstOrNull {
+        it.groupID == selectedDiscoverGroupID
+    }
 
     Surface(Modifier.fillMaxWidth(),
         color = MaterialTheme.colorScheme.background) {
@@ -583,7 +574,8 @@ private fun GroupsDiscoverPage(modifier: Modifier = Modifier,
             // sorted output - lazy column
             LazyColumn(Modifier.weight(1f)) {
                 items(visibleGroups, key = {it.groupID}) { item ->
-                    Card(Modifier.padding(16.dp)) {
+                    Card(Modifier.padding(16.dp)
+                        .clickable {selectedDiscoverGroupID = item.groupID}) {
                         Column(Modifier.fillMaxWidth()) {
                             Text(item.yearOfStudy)
                             Text(item.groupName)
@@ -618,6 +610,13 @@ private fun GroupsDiscoverPage(modifier: Modifier = Modifier,
         CreateGroup(Modifier,
             onBack = {showCreateGroup = false},
             onCreate = onGroupCreated
+        )
+    }
+
+    if (!showCreateGroup && selectedDiscoverGroup != null) {
+        GroupDetailsPage(
+            group = selectedDiscoverGroup,
+            onBack = {selectedDiscoverGroupID = null}
         )
     }
 }
@@ -785,6 +784,46 @@ fun CreateGroup(modifier: Modifier = Modifier,
                         capacity.isNotBlank() &&
                         description.isNotBlank()) {
                 Text("Create")
+            }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun GroupDetailsPage(modifier: Modifier = Modifier,
+                             group: Group,
+                             onBack: () -> Unit)
+{
+    ModalBottomSheet(
+        onDismissRequest = onBack
+    ) {
+        Column() {
+            Text(group.groupName)
+            Spacer(Modifier.height(2.dp))
+            Row(Modifier.fillMaxWidth()) {
+                Text("${group.yearOfStudy} · ${group.creationDate}")
+            }
+            Spacer(Modifier.height(5.dp))
+            Row() {
+                Text("Goal ${group.dailyGoalTime}")
+                Text("Members ${group.currentMemberCount}/${group.capacity}")
+                Text("Group leader ${group.ownerName}")
+            }
+            Spacer(Modifier.height(5.dp))
+            Row() {
+                Text("Attendance")
+                Text("Study time")
+                Text("Started")
+            }
+
+            Row(Modifier.fillMaxWidth()) {
+                Button(onClick = onBack) {
+                    Text("Close")
+                }
+                Button(onClick = {println("browse")}) {
+                    Text("Browse")
+                }
             }
         }
     }
