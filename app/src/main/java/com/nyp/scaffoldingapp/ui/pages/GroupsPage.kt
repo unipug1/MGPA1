@@ -99,6 +99,18 @@ fun GroupsPage(modifier: Modifier = Modifier, viewModel: GroupViewModel) {
                 onGroupCreated = { newGroup ->
                     groups = groups + newGroup
                     showDiscover = false
+                },
+                onGroupJoined = { group ->
+                    val alreadyJoined = groups.any {it.groupID == group.groupID}
+                    val hasSpace = group.currentMemberCount < group.capacity
+
+                    if (hasSpace && !alreadyJoined) {
+                        val joinedGroup = group.copy(
+                            currentMemberCount = group.currentMemberCount + 1
+                        )
+                        groups = groups + group
+                        showDiscover = false
+                    }
                 }
             )
         }
@@ -473,7 +485,8 @@ private fun GroupNotificationsDialog(
 @Composable
 private fun GroupsDiscoverPage(modifier: Modifier = Modifier,
                                onBack: () -> Unit,
-                               onGroupCreated: (Group) -> Unit) {
+                               onGroupCreated: (Group) -> Unit,
+                               onGroupJoined: (Group) -> Unit) {
     var selectedFilter by rememberSaveable {mutableStateOf("New")}
     val filters = listOf("New", "Attendance", "Study group")
     var yearChecked by rememberSaveable {mutableStateOf(false)}
@@ -616,7 +629,8 @@ private fun GroupsDiscoverPage(modifier: Modifier = Modifier,
     if (!showCreateGroup && selectedDiscoverGroup != null) {
         GroupDetailsPage(
             group = selectedDiscoverGroup,
-            onBack = {selectedDiscoverGroupID = null}
+            onBack = {selectedDiscoverGroupID = null},
+            onJoin = onGroupJoined
         )
     }
 }
@@ -793,7 +807,8 @@ fun CreateGroup(modifier: Modifier = Modifier,
 @Composable
 private fun GroupDetailsPage(modifier: Modifier = Modifier,
                              group: Group,
-                             onBack: () -> Unit)
+                             onBack: () -> Unit,
+                             onJoin: (Group) -> Unit)
 {
     ModalBottomSheet(
         onDismissRequest = onBack
@@ -821,8 +836,9 @@ private fun GroupDetailsPage(modifier: Modifier = Modifier,
                 Button(onClick = onBack) {
                     Text("Close")
                 }
-                Button(onClick = {println("browse")}) {
-                    Text("Browse")
+                Button(onClick = { onJoin(group) },
+                    enabled = group.currentMemberCount < group.capacity) {
+                    Text("Join")
                 }
             }
         }
