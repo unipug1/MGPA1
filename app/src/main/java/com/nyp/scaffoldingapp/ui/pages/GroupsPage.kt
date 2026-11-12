@@ -1,8 +1,5 @@
 package com.nyp.scaffoldingapp.ui.pages
 
-
-
-
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
@@ -43,9 +40,6 @@ import androidx.compose.ui.res.stringArrayResource
 import kotlinx.coroutines.selects.select
 import kotlin.math.exp
 
-
-
-
 @Composable
 fun GroupsPage(modifier: Modifier = Modifier, viewModel: GroupViewModel) {
     var groups by rememberSaveable {
@@ -55,26 +49,25 @@ fun GroupsPage(modifier: Modifier = Modifier, viewModel: GroupViewModel) {
         ))
     }
 
-
     var selectedGroupID by rememberSaveable {
         mutableStateOf<String?>(null)
     }
     val selectedGroup = groups.firstOrNull{it.groupID == selectedGroupID}
 
-
     val messagesByGroup by viewModel.messagesByGroup.collectAsState()
     val notificationSettings by viewModel.notificationSettings.collectAsState()
     val chatEnabledSetting by viewModel.chatEnabled.collectAsState()
-
 
     var showNotifications by rememberSaveable {
         mutableStateOf(false)
     }
 
+    var showDiscover by rememberSaveable {
+        mutableStateOf(false)
+    }
 
     Surface(Modifier.fillMaxSize(),
         color = MaterialTheme.colorScheme.background) {
-
 
         if (selectedGroup != null) {
             // look up messages
@@ -114,6 +107,10 @@ fun GroupsPage(modifier: Modifier = Modifier, viewModel: GroupViewModel) {
                 }
             )
         }
+        else if (showDiscover) {
+            GroupsDiscoverPage(Modifier,
+                onBack = {showDiscover = false})
+        }
         else {
             Column(Modifier.fillMaxSize()) {
                 Row(Modifier
@@ -137,7 +134,7 @@ fun GroupsPage(modifier: Modifier = Modifier, viewModel: GroupViewModel) {
                 }
 
 
-                Button(onClick = {println("Add")}) {
+                Button(onClick = {showDiscover = true}) {
                     Text("+")
                 }
             }
@@ -481,6 +478,134 @@ private fun GroupNotificationsDialog(
     }
 }
 
+@Composable
+private fun GroupsDiscoverPage(modifier: Modifier = Modifier,
+                               onBack: () -> Unit) {
+    var selectedFilter by rememberSaveable {mutableStateOf("New")}
+    val filters = listOf("New", "Attendance", "Study group")
+    var yearChecked by rememberSaveable {mutableStateOf(false)}
+    var availableChecked by rememberSaveable {mutableStateOf(false)}
+    var publicChecked by rememberSaveable {mutableStateOf(false)}
+
+    // test groups
+    val groups = listOf(
+        Group("lock in", "4", "JC Year 1", 3600, 3, 2, "test", "01-01-2022", "tester", "public"),
+        Group("testGroup3", "5", "Secondary", 3600, 5, 5, "test", "01-01-2022", "tester", "private")
+    )
+
+    Surface(Modifier.fillMaxWidth(),
+        color = MaterialTheme.colorScheme.background) {
+        Column(Modifier
+            .fillMaxWidth()
+            .padding(16.dp)) {
+            // top bar: back button + title + search button
+            Row(Modifier
+                .fillMaxWidth()
+                .padding(16.dp)) {
+                Button(onClick = onBack) {
+                    Text("<")
+                }
+                Text("Study group", style = MaterialTheme.typography.headlineSmall)
+                Button(onClick = {println("Search button clicked")}) {
+                    Text("Search")
+                }
+            }
+
+            Spacer(Modifier.height(8.dp))
+
+            // filters row
+            Row(Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                filters.forEach { filter ->
+                    FilterChip(
+                        selected = selectedFilter == filter,
+                        onClick = { selectedFilter = filter },
+                        label = {
+                            Text(filter)
+                        }
+                    )
+                }
+            }
+
+            HorizontalDivider(thickness = 5.dp)
+
+            // dynamic sorting
+            Text(
+                text = when (selectedFilter) {
+                    "New" -> "*Groups are sorted by creation date"
+                    "Attendance" -> "*The group list is ordered by member's average attendance rate over the past week, with larger groups ranking higher."
+                    else -> "*The group list is ordered by the average study time per member over the past week, with larger groups ranking higher."
+                },
+                style = MaterialTheme.typography.bodySmall
+            )
+
+
+            Row(verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                // year
+                Checkbox(
+                    checked = yearChecked,
+                    onCheckedChange = {yearChecked = it}
+                )
+                Text("J2")
+
+
+                // available
+                Checkbox(
+                    checked = availableChecked,
+                    onCheckedChange = {availableChecked = it}
+                )
+                Text("Available")
+
+
+                // public
+                Checkbox(
+                    checked = publicChecked,
+                    onCheckedChange = {publicChecked = it}
+                )
+                Text("Public")
+            }
+
+            val visibleGroups = if (availableChecked) {
+                groups.filter { group -> group.currentMemberCount < group.capacity }
+            } else {
+                groups
+            }
+
+            // sorted output - lazy column
+            LazyColumn(Modifier.weight(1f)) {
+                items(visibleGroups, key = {it.groupID}) { item ->
+                    Card(Modifier.padding(16.dp)) {
+                        Column(Modifier.fillMaxWidth()) {
+                            Text(item.yearOfStudy)
+                            Text(item.groupName)
+                            Row() {
+                                Text("Goal ${item.dailyGoalTime}")
+                                Text("Members ${item.currentMemberCount}/${item.capacity} people")
+                                Text("Group leader ${item.ownerName}")
+                            }
+                            Row() {
+                                Text("Attendance")
+                                Text("Study time")
+                                Text("Started")
+                            }
+                            HorizontalDivider(thickness = 2.dp)
+                            Text(item.description)
+                        }
+                    }
+                }
+            }
+
+            // create group button
+            Box(Modifier
+                .background(color = MaterialTheme.colorScheme.onSurfaceVariant, shape = CircleShape)) {
+                FloatingActionButton(onClick = {println("Create group")}) {
+                    Text("+")
+                }
+            }
+        }
+    }
+}
 
 // Preview
 @Preview(showBackground = true)
