@@ -32,6 +32,7 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.runtime.movableContentOf
 import androidx.compose.runtime.saveable.rememberSerializable
 import androidx.compose.ui.graphics.vector.Group
@@ -109,7 +110,12 @@ fun GroupsPage(modifier: Modifier = Modifier, viewModel: GroupViewModel) {
         }
         else if (showDiscover) {
             GroupsDiscoverPage(Modifier,
-                onBack = {showDiscover = false})
+                onBack = {showDiscover = false},
+                onGroupCreated = { newGroup ->
+                    groups = groups + newGroup
+                    showDiscover = false
+                }
+            )
         }
         else {
             Column(Modifier.fillMaxSize()) {
@@ -448,7 +454,8 @@ private fun GroupNotificationsDialog(
 ) {
     Dialog(onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false)) {
-        Card(Modifier.fillMaxHeight()
+        Card(Modifier
+            .fillMaxHeight()
             .fillMaxWidth(0.5f),
         ) {
             Column(Modifier.padding(16.dp)) {
@@ -480,7 +487,8 @@ private fun GroupNotificationsDialog(
 
 @Composable
 private fun GroupsDiscoverPage(modifier: Modifier = Modifier,
-                               onBack: () -> Unit) {
+                               onBack: () -> Unit,
+                               onGroupCreated: (Group) -> Unit) {
     var selectedFilter by rememberSaveable {mutableStateOf("New")}
     val filters = listOf("New", "Attendance", "Study group")
     var yearChecked by rememberSaveable {mutableStateOf(false)}
@@ -492,6 +500,9 @@ private fun GroupsDiscoverPage(modifier: Modifier = Modifier,
         Group("lock in", "4", "JC Year 1", 3600, 3, 2, "test", "01-01-2022", "tester", "public"),
         Group("testGroup3", "5", "Secondary", 3600, 5, 5, "test", "01-01-2022", "tester", "private")
     )
+    var showCreateGroup by rememberSaveable {
+        mutableStateOf(false)
+    }
 
     Surface(Modifier.fillMaxWidth(),
         color = MaterialTheme.colorScheme.background) {
@@ -506,9 +517,6 @@ private fun GroupsDiscoverPage(modifier: Modifier = Modifier,
                     Text("<")
                 }
                 Text("Study group", style = MaterialTheme.typography.headlineSmall)
-                Button(onClick = {println("Search button clicked")}) {
-                    Text("Search")
-                }
             }
 
             Spacer(Modifier.height(8.dp))
@@ -599,9 +607,184 @@ private fun GroupsDiscoverPage(modifier: Modifier = Modifier,
             // create group button
             Box(Modifier
                 .background(color = MaterialTheme.colorScheme.onSurfaceVariant, shape = CircleShape)) {
-                FloatingActionButton(onClick = {println("Create group")}) {
+                FloatingActionButton(onClick = {showCreateGroup = true}){
                     Text("+")
                 }
+            }
+        }
+    }
+
+    if (showCreateGroup) {
+        CreateGroup(Modifier,
+            onBack = {showCreateGroup = false},
+            onCreate = onGroupCreated
+        )
+    }
+}
+
+@Composable
+fun CreateGroup(modifier: Modifier = Modifier,
+                onBack: () -> Unit,
+                onCreate: (Group) -> Unit) {
+    // variables
+    var groupName by rememberSaveable {mutableStateOf("")}
+    var password by rememberSaveable {mutableStateOf("")}
+    var category by rememberSaveable {mutableStateOf("")}
+    var dailyGoalTime by rememberSaveable {mutableStateOf("")}
+    var capacity by rememberSaveable {mutableStateOf("")}
+    var description by rememberSaveable {mutableStateOf("")}
+
+    var categoryExpanded by rememberSaveable {
+        mutableStateOf(false)
+    }
+    var goalTimeExpanded by rememberSaveable {
+        mutableStateOf(false)
+    }
+    var capacityExpanded by rememberSaveable {
+        mutableStateOf(false)
+    }
+    val categoryOptions = listOf(
+        "Secondary School", "Polytechnic", "ITE", "JC Year 1", "JC Year 2", "University"
+    )
+    val goalTimeOptions = (1..20).map {
+        "$it hour${if (it == 1) "" else "s"} per day"
+    }
+    val capacityOptions = (2..50).map {
+        "$it people"
+    }
+
+    Surface(Modifier.fillMaxWidth(),
+        color = MaterialTheme.colorScheme.background) {
+        Column(Modifier
+            .fillMaxWidth()
+            .padding(16.dp)
+        ) {
+            // top bar
+            Row(Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically) {
+                Button(onClick = onBack) {
+                    Text("<")
+                }
+                Spacer(Modifier.width(16.dp))
+                Text("Create group", style = MaterialTheme.typography.titleLarge)
+            }
+
+            Spacer(Modifier.height(16.dp))
+
+            Card() {
+                OutlinedTextField(
+                    value = groupName,
+                    onValueChange = {groupName = it},
+                    placeholder = { Text("Enter group name") },
+                )
+                HorizontalDivider(thickness = 2.dp)
+                OutlinedTextField(
+                    value = password,
+                    onValueChange = {password = it},
+                    placeholder = {Text("Password (optional)")}
+                )
+            }
+
+            Spacer(Modifier.height(5.dp))
+            Card() {
+                Row(Modifier.fillMaxWidth()) {
+                    Text("Category")
+                    Spacer(Modifier.weight(1f))
+                    Box() {
+                        TextButton(onClick = {categoryExpanded = true}) {
+                            Text("${category.ifBlank { "Select a category" }} ›")
+                        }
+                        DropdownMenu(
+                            expanded = categoryExpanded,
+                            onDismissRequest = {categoryExpanded = false}
+                        ) {
+                            categoryOptions.forEach { option ->
+                                DropdownMenuItem(
+                                    text = { Text(option) },
+                                    onClick = {
+                                        category = option
+                                        categoryExpanded = false
+                                    }
+                                )
+                            }
+                        }
+                    }
+                }
+                HorizontalDivider(thickness = 2.dp)
+                Row(Modifier.fillMaxWidth()) {
+                    Text("Daily goal time")
+                    Spacer(Modifier.weight(1f))
+                    Box() {
+                        TextButton(onClick = {goalTimeExpanded = true}) {
+                            Text("${dailyGoalTime.ifBlank { "Select a goal time" }} ›")
+                        }
+                        DropdownMenu(
+                            expanded = goalTimeExpanded,
+                            onDismissRequest = {goalTimeExpanded = false}
+                        ) {
+                            goalTimeOptions.forEach { option ->
+                                DropdownMenuItem(
+                                    text = { Text(option) },
+                                    onClick = {
+                                        dailyGoalTime = option
+                                        goalTimeExpanded = false
+                                    }
+                                )
+                            }
+                        }
+                    }
+                }
+                HorizontalDivider(thickness = 2.dp)
+                Row(Modifier.fillMaxWidth()) {
+                    Text("Capacity")
+                    Spacer(Modifier.weight(1f))
+                    Box() {
+                        TextButton(onClick = {capacityExpanded = true}) {
+                            Text("${capacity.ifBlank { "Select people" }} ›")
+                        }
+                        DropdownMenu(
+                            expanded = capacityExpanded,
+                            onDismissRequest = { capacityExpanded = false }
+                        ) {
+                            capacityOptions.forEach { option ->
+                                DropdownMenuItem(
+                                    text = { Text(option) },
+                                    onClick = {
+                                        capacity = option
+                                        capacityExpanded = false
+                                    }
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            Spacer(Modifier.height(5.dp))
+            Card() {
+                OutlinedTextField(
+                    value = description,
+                    onValueChange = {description = it},
+                    placeholder = { Text("Describe your group (e.g. joining rules, words of encouragement)")}
+                )
+            }
+
+            Button(onClick = {
+                val goalHours = dailyGoalTime.substringBefore(" ").toLongOrNull()
+                    ?: return@Button
+                val maxPeople = capacity.substringBefore(" ").toIntOrNull()
+                    ?: return@Button
+                val newGroup = Group(groupName = groupName, groupID = "6", yearOfStudy = category,
+                    dailyGoalTime = goalHours * 3600L, capacity = maxPeople, currentMemberCount = 1, description = description,
+                    creationDate = "Today", ownerName = "User", privacyStatus = "public")
+                onCreate(newGroup)
+            },
+                enabled = groupName.isNotBlank() &&
+                        category.isNotBlank() &&
+                        dailyGoalTime.isNotBlank() &&
+                        capacity.isNotBlank() &&
+                        description.isNotBlank()) {
+                Text("Create")
             }
         }
     }
