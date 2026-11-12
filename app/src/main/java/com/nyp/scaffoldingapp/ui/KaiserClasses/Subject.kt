@@ -57,7 +57,7 @@ data class ToDoSubjects(
 )
 
 fun DateTimeFormat(dateTime: LocalDateTime) : String{
-    val formatter = DateTimeFormatter.ofPattern("yyyy-mm-dd HH-mm", Locale.getDefault())
+    val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH-mm", Locale.getDefault())
     return dateTime.format(formatter)
 }
 
@@ -115,7 +115,21 @@ class SubjectViewModel : ViewModel(){
     }
 
     fun EditTask(task: Task, name: String, date: LocalDateTime){
-
+        _subjects.update { currentState ->
+            val updatedSubjects = currentState.subjects.map{
+                    thisSubject ->
+                val updatedTasks = thisSubject.tasks.map{ thisTask->
+                    if (thisTask.task.id == task.id){
+                        val updatedTask = thisTask.task.copy(name = name, deadline = date)
+                        thisTask.copy(task = updatedTask)
+                    }
+                    else
+                        thisTask
+                }
+                thisSubject.copy(tasks = updatedTasks)
+            }
+            ToDoSubjects(subjects = updatedSubjects)
+        }
     }
     fun EditSubject(subject : Subject, color : Color? = null, name : String? = null){
         _subjects.update { currentState ->

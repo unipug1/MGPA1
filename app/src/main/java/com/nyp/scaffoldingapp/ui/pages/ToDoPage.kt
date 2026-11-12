@@ -469,7 +469,7 @@ fun EditTaskDialog(
                 var name by remember { mutableStateOf( task.name) }
                 var date by rememberSaveable { mutableStateOf(task.deadline) }
 
-                var timePickerState : TimePickerState
+
 
                 OutlinedTextField(
                     value = name,
@@ -478,9 +478,7 @@ fun EditTaskDialog(
                     singleLine = true
                 )
 
-
-                DatePickerDocked({ date = it })
-                timePickerState = TimePicker()
+                val timePickerState = TimePicker()
 
                 Spacer(Modifier.height(15.dp))
                 DatePickerDocked({ date = it })
@@ -590,8 +588,8 @@ fun SubjectDialog(
 
 
 @Composable
-fun ToDoPage(modifier: Modifier) {
-    val viewModel: SubjectViewModel = viewModel()
+fun ToDoPage(viewModel: SubjectViewModel,modifier: Modifier) {
+
 
     var addSubjScreen by remember { mutableStateOf(false)}
 

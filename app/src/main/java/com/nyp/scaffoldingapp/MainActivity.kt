@@ -10,6 +10,8 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.nyp.scaffoldingapp.ui.KaiserClasses.SubjectViewModel
 import com.nyp.scaffoldingapp.ui.pages.*
 import com.nyp.scaffoldingapp.ui.theme.ScaffoldingTheme
 
@@ -40,6 +42,7 @@ fun AppScaffold() {
     // rememberSaveable, not remember: the selected tab must survive a rotation.
     var selectedTab by rememberSaveable { mutableStateOf(Tab.PAGE1) }
 
+    val subjViewModel: SubjectViewModel = viewModel()
     Scaffold(
         bottomBar = {
             NavigationBar {
@@ -67,7 +70,7 @@ fun AppScaffold() {
         // the navigation bar.
         Box(Modifier.padding(padding).fillMaxSize()) {
             when (selectedTab) {
-                Tab.PAGE1 -> ToDoPage(Modifier)
+                Tab.PAGE1 -> ToDoPage(subjViewModel ,Modifier)
                 Tab.PAGE2 -> Page2()
                 Tab.PAGE3 -> Page3()
                 Tab.PAGE4 -> Page4()
