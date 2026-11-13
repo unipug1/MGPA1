@@ -1,7 +1,9 @@
 package com.nyp.scaffoldingapp.ui.pages
 
+import android.os.Build
 import android.widget.Space
 import android.widget.TimePicker
+import androidx.annotation.RequiresApi
 import java.time.Instant
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.runtime.Composable
@@ -53,6 +55,7 @@ import kotlin.time.Duration.Companion.milliseconds
 
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.nyp.scaffoldingapp.ui.KaiserClasses.SubjectViewModel
+import com.nyp.scaffoldingapp.ui.pages.ToDoPage
 import com.nyp.scaffoldingapp.ui.KaiserClasses.ToDoSubjects
 import java.text.SimpleDateFormat
 import java.time.ZoneId
@@ -60,20 +63,50 @@ import java.util.Locale
 import java.util.Date
 import kotlin.time.ExperimentalTime
 
+
+@OptIn(ExperimentalMaterial3Api::class)
+@RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun CalendarPage(viewModel: SubjectViewModel, modifier: Modifier){
+
 
     val datePickerState = rememberDatePickerState()
 
     var pickedDate: String = ""
     datePickerState.selectedDateMillis?.let{ pickedDate = ConvertMilisToDate(it)}
-    Column(Modifier.fillMaxWidth().fillMaxHeight()){
-        OutlinedTextField(
-            value = pickedDate,
-            onValueChange = {},
-            readOnly = true,
-            modifier = Modifier
-        )
-        DatePicker(state = datePickerState, showModeToggle = false )
+
+    var showTasks by remember { mutableStateOf(false) }
+    if (!showTasks) {
+        Column(Modifier.fillMaxWidth().fillMaxHeight()) {
+            OutlinedTextField(
+                value = pickedDate,
+                onValueChange = {},
+                readOnly = true,
+                modifier = Modifier
+            )
+            DatePicker(
+                state = datePickerState,
+                showModeToggle = false,
+                modifier = Modifier.fillMaxWidth()
+            )
+            Button({showTasks = true}){
+                Text("See Day")
+            }
+        }
+    }
+    else {
+
+        Dialog(onDismissRequest = {showTasks = false}) {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .fillMaxHeight(0.95f)
+                    .padding(20.dp),
+                shape = RoundedCornerShape(20.dp),
+                colors = CardDefaults.cardColors(containerColor = Color.Black)
+            ) {
+
+            }
+        }
     }
 }

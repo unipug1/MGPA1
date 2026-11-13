@@ -1,8 +1,33 @@
 package com.nyp.scaffoldingapp.ui.KaiserClasses
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.Button
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
 import java.time.LocalDateTime
 
 
@@ -30,14 +55,69 @@ import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.time.Duration
 import java.util.UUID
 
-data class Task(
-    var name : String,
-    var deadline : LocalDateTime,
-    val id: String = UUID.randomUUID().toString()
+enum class TaskType{
+    DEFAULT,
+    TIME_RANGE
+}
 
-)
+enum class RoutineType{
+    NONE,
+    DAILY,
+    WEEKLy
+}
+
+sealed interface Edit<out T>{
+    data object Keep : Edit<Nothing>
+    data class Change<T>(val value : T) : Edit<T>
+}
+
+fun <T> Edit<T>.ApplyChange(current : T): T {
+    return when(this){
+        Edit.Keep -> current
+        is Edit.Change -> value
+    }
+}
+
+enum class CompletionProgress{
+    NOT_DONE,
+    PARTIALLY_DONE,
+    DONE
+}
+
+
+
+
+class Task(
+    var name : String,
+    val id: String = UUID.randomUUID().toString(),
+    var completionProgress: CompletionProgress = CompletionProgress.NOT_DONE,
+    var routineType: RoutineType = RoutineType.NONE,
+    var duration: Duration? = null,
+    var time: LocalDateTime? = null,
+    var taskType: TaskType
+) {
+
+    fun Edit(name : Edit<String> = Edit.Keep,
+             progress : Edit<CompletionProgress> = Edit.Keep,
+             routine : Edit<RoutineType> = Edit.Keep,
+             time : Edit<LocalDateTime> = Edit.Keep,
+             duration: Edit<Duration> = Edit.Keep) : Task{
+        name.ApplyChange(this.name)
+        progress.ApplyChange(this.completionProgress)
+        routine.ApplyChange(this.routineType)
+        time.ApplyChange(this.time)
+        duration.ApplyChange(this.duration)
+        return this
+    }
+
+
+
+}
+
+
 
 data class Subject(
     var name : String = "Default",
@@ -61,7 +141,18 @@ fun DateTimeFormat(dateTime: LocalDateTime) : String{
     return dateTime.format(formatter)
 }
 
+fun TimeFormat(time: LocalTime) : String{
+    val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH-mm", Locale.getDefault())
+    return time.format(formatter)
+}
+
 class SubjectViewModel : ViewModel(){
+
+    data class TaskSubj(
+        var toDoTask: ToDoTask,
+        var subject: Subject
+    )
+
     private val _subjects = MutableStateFlow(ToDoSubjects())
     val subjects: StateFlow<ToDoSubjects> = _subjects.asStateFlow()
 
@@ -70,6 +161,31 @@ class SubjectViewModel : ViewModel(){
 
 
         _subjects.update { currentState -> currentState.copy((currentState.subjects + newSubj)) }
+    }
+
+    fun GetTasks(requirement: (ToDoTask)-> Boolean = {true}): MutableList<TaskSubj>{
+        val subjects = _subjects.value.subjects
+        val returnTasks: MutableList<TaskSubj> = mutableListOf()
+        for (i in 1..subjects.size){
+            val subject = subjects[i - 1]
+            for (i in 1..subject.tasks.size){
+                val task = subject.tasks[i - 1]
+                if (requirement(task))
+                    returnTasks.add(TaskSubj(task, subject))
+            }
+        }
+        return returnTasks
+    }
+
+    fun GetSubjects(requirement: (Subject)-> Boolean = {true}): MutableList<Subject>{
+        val subjects = _subjects.value.subjects
+        val returnSubjs: MutableList<Subject> = mutableListOf()
+        for (i in 1..subjects.size){
+            val subject = subjects[i - 1]
+            if (requirement(subject))
+                returnSubjs.add(subject)
+        }
+        return returnSubjs
     }
 
     fun DeleteTask(task: Task){
@@ -113,18 +229,40 @@ class SubjectViewModel : ViewModel(){
             ToDoSubjects(subjects = updatedSubjects)
         }
     }
+    fun SetTaskFinished(requirement: (Subject)->Boolean, finished: Boolean){
+        _subjects.update { currentState ->
+            val updatedSubjects = currentState.subjects.map { subject ->
+                val updatedTasks = subject.tasks.map { toDoTask ->
+                    if (requirement(subject)) {
+                        toDoTask.copy(finished = finished)
+                        //toDoTask
+                    } else {
+                        toDoTask
+                    }
+                }
+                subject.copy(tasks = updatedTasks)
+            }
+            ToDoSubjects(subjects = updatedSubjects)
+        }
+    }
 
-    fun EditTask(task: Task, name: String, date: LocalDateTime){
+    fun EditTask(task: Task, name : Edit<String> = Edit.Keep,
+                 progress : Edit<CompletionProgress> = Edit.Keep,
+                 routine : Edit<RoutineType> = Edit.Keep,
+                 time : Edit<LocalDateTime> = Edit.Keep,
+                 duration: Edit<Duration> = Edit.Keep){
         _subjects.update { currentState ->
             val updatedSubjects = currentState.subjects.map{
                     thisSubject ->
                 val updatedTasks = thisSubject.tasks.map{ thisTask->
                     if (thisTask.task.id == task.id){
-                        val updatedTask = thisTask.task.copy(name = name, deadline = date)
-                        thisTask.copy(task = updatedTask)
+                        thisTask.copy(
+                            task = thisTask.task.Edit(name = name, time = time, progress = progress, routine = routine, duration = duration)
+                        )
                     }
                     else
                         thisTask
+
                 }
                 thisSubject.copy(tasks = updatedTasks)
             }
@@ -148,8 +286,8 @@ class SubjectViewModel : ViewModel(){
         }
     }
 
-    fun AddTask(name : String, deadline: LocalDateTime, subject : Subject) {
-        val newTask = Task(name, deadline)
+    fun AddTask(name : String, subject : Subject,time: LocalDateTime? = null, duration: Duration? = null, taskType: TaskType = TaskType.DEFAULT) {
+        val newTask = Task(name = name, time = time, duration = duration, taskType = taskType, completionProgress = CompletionProgress.NOT_DONE)
         val newToDoTask = ToDoTask(newTask, false)
 
 
@@ -159,8 +297,6 @@ class SubjectViewModel : ViewModel(){
 
 
     }
-
-    fun GetSubjects() : ToDoSubjects{
-        return subjects.value
-    }
 }
+
+//class EventViewModel :

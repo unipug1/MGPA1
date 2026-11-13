@@ -50,6 +50,7 @@ android {
 }
 
 dependencies {
+    implementation(libs.androidx.compose.ui.text)
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.3")
 
     // 2. Standard string replacements for the broken lines

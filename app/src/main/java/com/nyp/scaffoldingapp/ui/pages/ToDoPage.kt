@@ -9,8 +9,13 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.snapping.SnapPosition
+import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -18,15 +23,24 @@ import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.snapshots.Snapshot
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.layout.positionInWindow
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.LineHeightStyle
+import androidx.compose.ui.text.style.TextGeometricTransform
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -42,6 +56,7 @@ import java.time.format.DateTimeFormatter
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.DayOfWeek
+import androidx.compose.ui.unit.IntOffset
 
 import com.nyp.scaffoldingapp.ui.KaiserClasses.Subject
 import com.nyp.scaffoldingapp.ui.KaiserClasses.Task
@@ -53,11 +68,18 @@ import kotlin.time.Duration.Companion.milliseconds
 
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.nyp.scaffoldingapp.ui.KaiserClasses.SubjectViewModel
+import com.nyp.scaffoldingapp.ui.KaiserClasses.TimeFormat
 import com.nyp.scaffoldingapp.ui.KaiserClasses.ToDoSubjects
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.filter
 import java.text.SimpleDateFormat
 import java.time.ZoneId
 import java.util.Locale
 import java.util.Date
+import kotlin.math.PI
+import kotlin.math.abs
+import kotlin.math.sin
+import kotlin.time.Duration
 import kotlin.time.ExperimentalTime
 
 //@Composable
@@ -72,62 +94,19 @@ fun TasksDisplay(subjects: ToDoSubjects, modifier: Modifier,
                  onAddTask: (Subject)->Unit,
                  onEditTask: (Task)-> Unit,
                  onDeleteTask: (Task)->Unit){
-    var menuSubject by remember { mutableStateOf<Subject?>(null) }
+    var selectedSubjectDropdown by remember { mutableStateOf<Subject?>(null) }
+    LazyColumn(modifier) {
 
-    Column(modifier) {
         for (f in 1..subjects.subjects.size){
 
             val subject = subjects.subjects[f-1]
-            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier
-                .height(35.dp)
-                .background(Color(0xffa3a3a3))
-                .fillMaxWidth()) {
-                Spacer(Modifier.width(5.dp))
-                Box(modifier = Modifier
-                    .clip(RoundedCornerShape(3.dp))
-                    .width(10.dp)
-                    .height(15.dp)
-                    .background(subject.color)){}
-                Spacer(Modifier.width(10.dp))
-                Text(subject.name, color = subject.color, style = MaterialTheme.typography.headlineMedium, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
-                Spacer(Modifier.width(30.dp))
-                Button(onClick = {onAddTask(subject)}, modifier = Modifier
-                    .size(20.dp),shape = RoundedCornerShape(3.dp), colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),border = BorderStroke(color = Color.White, width = 2.dp), contentPadding = PaddingValues(0.dp)){Text("+")}
-                Spacer(Modifier.width(2.dp))
-                Row() {
-                    Button(
-                        onClick = { menuSubject = subject },
-                        elevation = null,
-                        modifier = Modifier
-                            .width(15.dp)
-                            .height(20.dp),
-                        contentPadding = PaddingValues(0.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color.Transparent,
-                            contentColor = Color.White
-                        )
-                    ) { Text(":") }
-                    Spacer(Modifier.width(2.dp))
-                    DropdownMenu(
-                        expanded = menuSubject == subject,
-                        onDismissRequest = { menuSubject = null }
-                    ) {
-                        DropdownMenuItem(
-                            text = { Text("Edit") },
-                            onClick = { onEditSubject(subject) }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("Delete") },
-                            onClick = { onDeleteSubject(subject) }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("Close") },
-                            onClick = { menuSubject = null }
-                        )
-                    }
-                }
+            DisplaySubject(subject,onEditSubject = onEditSubject,
+                onDeleteSubject = onDeleteSubject,
+                onSelect = {selectedSubjectDropdown = it},
+                onAddTask = onAddTask,
+                selectedSubjectDropdown,
+                {selectedSubjectDropdown = null})
 
-            }
             for (i in 1..subject.tasks.size) {
                 Row(modifier = Modifier
                     .padding(5.dp)
@@ -171,6 +150,70 @@ fun TasksDisplay(subjects: ToDoSubjects, modifier: Modifier,
 
 
 }
+
+@Composable
+fun DisplaySubject(
+    subject: Subject,
+    onEditSubject: (Subject)->Unit,
+    onDeleteSubject: (Subject)->Unit,
+    onSelect: (Subject)->Unit,
+    onAddTask: (Subject)->Unit,
+    dropDownSubj: Subject?,
+    dropdownDismiss: ()->Unit
+){
+    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier
+        .height(35.dp)
+        .background(Color(0xffa3a3a3))
+        .fillMaxWidth()) {
+        Spacer(Modifier.width(5.dp))
+        Box(modifier = Modifier
+            .clip(RoundedCornerShape(3.dp))
+            .width(10.dp)
+            .height(15.dp)
+            .background(subject.color)){}
+        Spacer(Modifier.width(10.dp))
+        Text(subject.name, color = subject.color, style = MaterialTheme.typography.headlineMedium, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+        Spacer(Modifier.width(30.dp))
+        Button(onClick = {onAddTask(subject)}, modifier = Modifier
+            .size(20.dp),shape = RoundedCornerShape(3.dp), colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent),border = BorderStroke(color = Color.White, width = 2.dp), contentPadding = PaddingValues(0.dp)){Text("+")}
+        Spacer(Modifier.width(2.dp))
+        Row() {
+            Button(
+                onClick = {onSelect(subject)},
+                elevation = null,
+                modifier = Modifier
+                    .width(15.dp)
+                    .height(20.dp),
+                contentPadding = PaddingValues(0.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color.Transparent,
+                    contentColor = Color.White
+                )
+            ) { Text(":") }
+            Spacer(Modifier.width(2.dp))
+            DropdownMenu(
+                expanded = dropDownSubj == subject,
+                onDismissRequest = dropdownDismiss
+            ) {
+                DropdownMenuItem(
+                    text = { Text("Edit") },
+                    onClick = { onEditSubject(subject) }
+                )
+                DropdownMenuItem(
+                    text = { Text("Delete") },
+                    onClick = { onDeleteSubject(subject) }
+                )
+                DropdownMenuItem(
+                    text = { Text("Close") },
+                    onClick = { dropdownDismiss() }
+                )
+            }
+        }
+
+    }
+}
+
+
 @Composable
 fun DisplayTask(task : Task,
                 color: Color,
@@ -184,7 +227,7 @@ fun DisplayTask(task : Task,
         Text(task.name, color = color, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
         Spacer(Modifier.weight(1f))
         Row() {
-            Text(DateTimeFormat(task.deadline))
+            task.time?.let{(DateTimeFormat(it))}
             Spacer(Modifier.width(2.dp))
             Button(
                 onClick = {menuTask = task},
@@ -233,6 +276,69 @@ fun ConvertMilisToLocalDateTime(millis : Long) : LocalDateTime{
     return localDateTime
 }
 
+data class StringObjPair<T>(
+    var name : String,
+    var obj : T
+)
+
+@Composable
+fun <T>WheelPicker(
+    items: List<StringObjPair<T>>,
+    onSelect: (T)->Unit,
+    onPressed: (T)->Unit,
+    itemSize: Size,
+    visibleItems : Int = 5,
+    initialIndex : Int = 0
+){
+    val listState = rememberLazyListState(initialFirstVisibleItemIndex = initialIndex, )
+    val snapFling = rememberSnapFlingBehavior(lazyListState = listState)
+    val height = itemSize.height * visibleItems
+
+    val centerIndex by remember {
+        derivedStateOf {
+            val info = listState.layoutInfo
+            val center = (info.viewportStartOffset + info.viewportEndOffset) / 2
+            info.visibleItemsInfo
+                .minByOrNull { abs(it.offset + it.size / 2 - center) }
+                ?.index ?: initialIndex
+        }
+    }
+
+    val selectedItem by rememberUpdatedState(onSelect)
+    LaunchedEffect(listState) {
+        snapshotFlow{ listState.isScrollInProgress }
+            //filter it just means it calls when snapshotFlow is true
+            .filter { !it }
+            .collect{ onSelect(items[centerIndex].obj)}
+    }
+
+    Box(Modifier.width(itemSize.width.dp).height(height.dp), contentAlignment = Alignment.Center){
+        Box(Modifier.fillMaxWidth().height(itemSize.height.dp).clip(RoundedCornerShape(12.dp))){
+            LazyColumn(            state = listState,
+                flingBehavior = snapFling,
+                contentPadding = PaddingValues(vertical = (height * 0.5f).dp),
+                modifier = Modifier.fillMaxWidth()) {
+                itemsIndexed(items) { index, item ->
+                    val distance = abs(index - centerIndex)
+                    Box(
+                        Modifier
+                            .fillMaxWidth()
+                            .height(abs(sin(itemSize.height * 0.5f / (2 * PI))).dp)
+                            .alpha((1f - 0.3f * distance).coerceAtLeast(0.15f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = item.name,
+                            modifier = Modifier.graphicsLayer(scaleY = abs(sin(itemSize.height * 0.5f / (2 * PI)).toFloat()))
+                        )
+
+
+                    }
+                }
+            }
+        }
+    }
+}
 
 
 
@@ -329,6 +435,74 @@ fun DeleteTaskDialog(task: Task,
 }
 
 @Composable
+fun CreateScreen(subject: Subject, viewModel: SubjectViewModel, modifier: Modifier = Modifier) {
+
+    var showSubjDropDown by remember { mutableStateOf(false) }
+    var selectedSubj by rememberSaveable { mutableStateOf(subject) }
+    var taskName by rememberSaveable { mutableStateOf("") }
+
+    val subjList by viewModel.subjects.collectAsStateWithLifecycle()
+    Column(modifier) {
+        DropdownMenu(
+            expanded = showSubjDropDown,
+            onDismissRequest = { showSubjDropDown = false }
+        ) {
+            for (i in 1..subjList.subjects.size) {
+                Button(
+                    onClick = { selectedSubj = subjList.subjects[i - 1] },
+                    Modifier.weight(1f)
+                ) {
+                    Row() {
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(3.dp))
+                                .width(10.dp)
+                                .height(15.dp)
+                                .background(subject.color)
+                        ) {}
+                        Spacer(Modifier.width(10.dp))
+                        Text(
+                            subject.name,
+                            color = subject.color,
+                            style = MaterialTheme.typography.headlineSmall,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f)
+                        )
+
+                    }
+                }
+            }
+        }
+        Row(Modifier.fillMaxWidth()) {
+            Button(
+                onClick = { showSubjDropDown != showSubjDropDown },
+                Modifier.weight(1f)
+            ) {
+                Column() {
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(3.dp))
+                            .width(10.dp)
+                            .height(15.dp)
+                            .background(subject.color)
+                    ) {}
+                    Spacer(Modifier.width(10.dp))
+                    Text(
+                        subject.name,
+                        color = subject.color,
+                        style = MaterialTheme.typography.headlineSmall,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f)
+                    )
+
+                }
+            }
+        }
+
+    }
+}
+
+    @Composable
 fun DeleteSubjDialog(subject: Subject,
                      onDismiss: ()->Unit,
                      viewModel: SubjectViewModel){
@@ -382,68 +556,6 @@ fun SelectColor(colors : List<Color>,
     return selectedColor
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun AddTaskDialog(
-
-    subject: Subject,
-    onDismiss: ()->Unit,
-    subjectViewModel: SubjectViewModel) {
-    Dialog(
-        onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false)
-    ) {
-        Card(
-            modifier = Modifier
-                .fillMaxWidth()
-                .fillMaxHeight(0.95f),
-            shape = RoundedCornerShape(20.dp)
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp)
-            ) {
-                var name by remember { mutableStateOf( "Subject Name") }
-                var date by rememberSaveable { mutableStateOf(LocalDateTime.now()) }
-//                var time by rememberSaveable { mutableStateOf<TimePicker?>(null) }
-//
-                var timePickerState: TimePickerState
-
-                OutlinedTextField(
-                    value = name,
-                    onValueChange = { name = it },
-                    label = { Text("Task Name") },
-                    singleLine = true
-                )
-
-                Spacer(Modifier.height(15.dp))
-                DatePickerDocked({ date = it })
-                timePickerState = TimePicker()
-                Row(Modifier.fillMaxWidth()) {
-                    Spacer(Modifier.weight(1f))
-                    Button(
-                        colors = ButtonDefaults.buttonColors(containerColor = Color.White),
-                        onClick = {
-
-                            subjectViewModel.AddTask(
-                                name,
-                                date.withHour(timePickerState.hour).withMinute(timePickerState.minute),
-                                subject
-                                )
-                            onDismiss()
-
-                        }) { Text("Confirm", color = Color.Black) }
-                    Spacer(Modifier.weight(1f))
-                    Button(onClick = onDismiss) { Text("Cancel") }
-                    Spacer(Modifier.weight(1f))
-
-                }
-            }
-        }
-    }
-}
-
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -467,21 +579,11 @@ fun EditTaskDialog(
                     .padding(16.dp)
             ) {
                 var name by remember { mutableStateOf( task.name) }
-                var date by rememberSaveable { mutableStateOf(task.deadline) }
 
-
-
-                OutlinedTextField(
-                    value = name,
-                    onValueChange = { name = it },
-                    label = { Text("Task Name") },
-                    singleLine = true
-                )
 
                 val timePickerState = TimePicker()
 
                 Spacer(Modifier.height(15.dp))
-                DatePickerDocked({ date = it })
                 Row(Modifier.fillMaxWidth()) {
                     Spacer(Modifier.weight(1f))
                     Button(
@@ -491,7 +593,7 @@ fun EditTaskDialog(
                             subjectViewModel.EditTask(
                                 task,
                                 name,
-                                date.withHour(timePickerState.hour).withMinute(timePickerState.minute)
+                                LocalTime.of(timePickerState.hour,timePickerState.minute)
                             )
                             onDismiss()
 
@@ -587,6 +689,8 @@ fun SubjectDialog(
 }
 
 
+
+
 @Composable
 fun ToDoPage(viewModel: SubjectViewModel,modifier: Modifier) {
 
@@ -603,10 +707,16 @@ fun ToDoPage(viewModel: SubjectViewModel,modifier: Modifier) {
 
     var dateTime by remember() { mutableStateOf(LocalDateTime.now()) }
 
+    var currDay by remember() {mutableStateOf(LocalDate.now())}
     //basically a coroutine
     LaunchedEffect(Unit) {
         while (true) {
             dateTime = LocalDateTime.now()
+            if (LocalDate.now() != currDay){
+                viewModel.SetTaskFinished({true}, false)
+
+            }
+
             delay(1000L.milliseconds)
         }
     }
