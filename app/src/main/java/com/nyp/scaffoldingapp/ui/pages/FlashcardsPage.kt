@@ -33,8 +33,12 @@ fun FlashcardsPage(modifier: Modifier = Modifier,
 
     val decks = viewModel.decks
     val cards = viewModel.cards
+    val folders = viewModel.folders
 
     var showAddDeckDialog by rememberSaveable {mutableStateOf(false)}
+
+    var showAddFolderDialog by rememberSaveable { mutableStateOf(false) }
+    var selectedFolderId by rememberSaveable { mutableStateOf<String?>(null) }
 
     var selectedDeckId by rememberSaveable {mutableStateOf<String?>(null)}
     val selectedDeck = decks.firstOrNull{it.id == selectedDeckId}
@@ -66,6 +70,16 @@ fun FlashcardsPage(modifier: Modifier = Modifier,
         return
     }
 
+    val selectedFolder = folders.firstOrNull { it.id == selectedFolderId }
+
+    if (selectedFolder != null) {
+        FolderPage(
+            folder = selectedFolder,
+            onBack = { selectedFolderId = null }
+        )
+        return
+    }
+
     Surface(
         modifier = Modifier.fillMaxSize(),
         color = MaterialTheme.colorScheme.surfaceVariant
@@ -86,7 +100,6 @@ fun FlashcardsPage(modifier: Modifier = Modifier,
                         Text("+ New")
                     }
 
-
                     DropdownMenu(
                         expanded = newOptionsExpanded,
                         onDismissRequest = { newOptionsExpanded = false }
@@ -99,20 +112,20 @@ fun FlashcardsPage(modifier: Modifier = Modifier,
                             }
                         )
 
-
                         DropdownMenuItem(
                             text = { Text("Add folder") },
-                            onClick = { newOptionsExpanded = false }
+                            onClick = {
+                                newOptionsExpanded = false
+                                showAddFolderDialog = true
+                            }
                         )
                     }
                 }
-
 
                 Box {
                     Button(onClick = { moreOptionsExpanded = true }) {
                         Text("···")
                     }
-
 
                     DropdownMenu(
                         expanded = moreOptionsExpanded,
@@ -123,12 +136,10 @@ fun FlashcardsPage(modifier: Modifier = Modifier,
                             onClick = { moreOptionsExpanded = false }
                         )
 
-
                         DropdownMenuItem(
                             text = { Text("Archived") },
                             onClick = { moreOptionsExpanded = false }
                         )
-
 
                         DropdownMenuItem(
                             text = { Text("List") },
@@ -138,17 +149,31 @@ fun FlashcardsPage(modifier: Modifier = Modifier,
                 }
             }
 
-
             LazyColumn(Modifier.fillMaxWidth().weight(1f),
                 contentPadding = PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp))
             {
+                items(folders, key = {"folder-${it.id}"}) {folder ->
+                    Card(
+                        onClick = {selectedFolderId = folder.id},
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(Modifier.padding(16.dp)) {
+                            Text(folder.name)
+                            Text("Folder")
+
+                            if (folder.author.isNotBlank()) {
+                                Text(folder.author)
+                            }
+                        }
+                    }
+                }
+
                 items(decks, key = {it.id}) { deck ->
                     Card(onClick = {selectedDeckId = deck.id},
                         Modifier.fillMaxWidth()) {
                         Column(Modifier.padding(16.dp)) {
                             Text(deck.title)
-
 
                             if (deck.author.isNotBlank()) {
                                 Text(deck.author)
@@ -167,6 +192,16 @@ fun FlashcardsPage(modifier: Modifier = Modifier,
             onSave = { title, author ->
                 viewModel.addDeck(title, author)
                 showAddDeckDialog = false
+            }
+        )
+    }
+
+    if (showAddFolderDialog) {
+        AddFolderDialog(
+            onDismiss = {showAddFolderDialog = false},
+            onSave = {name, author ->
+                viewModel.addFolder(name, author)
+                showAddFolderDialog = false
             }
         )
     }
@@ -734,6 +769,72 @@ private fun CardView(
         ) {
             Text("Undo")
         }
+    }
+}
+
+@Composable
+private fun AddFolderDialog(
+    onDismiss: () -> Unit,
+    onSave: (name: String, author: String) -> Unit
+) {
+    var name by rememberSaveable {mutableStateOf("")}
+    var author by rememberSaveable {mutableStateOf("")}
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("New folder") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text("Folder name") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+                OutlinedTextField(
+                    value = author,
+                    onValueChange = { author = it },
+                    label = { Text("Author (optional)") },
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = { onSave(name.trim(), author.trim()) },
+                enabled = name.isNotBlank()
+            ) {
+                Text("✓")
+            }
+        }
+    )
+}
+
+@Composable
+private fun FolderPage(
+    folder: FlashcardFolder,
+    onBack: () -> Unit
+) {
+    BackHandler(onBack = onBack)
+
+    Column(modifier = Modifier.fillMaxSize().padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            TextButton(onClick = onBack) {
+                Text("Back")
+            }
+            Text(folder.name, style = MaterialTheme.typography.titleLarge)
+        }
+
+        Text("No decks in this folder yet.")
     }
 }
 

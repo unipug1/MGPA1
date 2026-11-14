@@ -10,9 +10,11 @@ class FlashcardsViewModel : ViewModel() {
     private val deckItems = mutableStateListOf<FlashcardDeck>()
     private val cardItems = mutableStateListOf<StudyCard>()
     private val memorisedById = mutableStateMapOf<String, Boolean>()
+    private val folderItems = mutableStateListOf<FlashcardFolder>()
 
     val decks: List<FlashcardDeck> get() = deckItems
     val cards: List<StudyCard> get() = cardItems
+    val folders: List<FlashcardFolder> get() = folderItems
 
     fun addDeck(title: String, author: String) {
         deckItems.add(
@@ -66,5 +68,15 @@ class FlashcardsViewModel : ViewModel() {
     fun isMemorised(cardId: String): Boolean = memorisedById[cardId] == true
     fun applyReview(results: Map<String, Boolean>) {
         memorisedById.putAll(results)
+    }
+
+    fun addFolder(name: String, author: String) {
+        folderItems.add(
+            FlashcardFolder(
+                id = UUID.randomUUID().toString(),
+                name = name,
+                author = author
+            )
+        )
     }
 }
