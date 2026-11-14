@@ -58,6 +58,17 @@ fun FlashcardsPage(modifier: Modifier = Modifier,
             },
             onDeleteCard = {id ->
                 cards.removeAll {it.id == id}
+            },
+            onEditDeck = { title, author ->
+                val index = decks.indexOfFirst { it.id == selectedDeck.id }
+                if (index >= 0) {
+                    decks[index] = decks[index].copy(title = title, author = author)
+                }
+            },
+            onDeleteDeck = {
+                cards.removeAll { it.deckId == selectedDeck.id }
+                decks.removeAll { it.id == selectedDeck.id }
+                selectedDeckId = null
             }
         )
         return
@@ -179,15 +190,15 @@ fun FlashcardsPage(modifier: Modifier = Modifier,
 @Composable
 private fun AddFlashcardPageDialog(
     onDismiss: () -> Unit,
-    onSave: (title: String, author: String) -> Unit
+    onSave: (title: String, author: String) -> Unit,
+    deck: FlashcardDeck? = null
 ) {
-    var title by rememberSaveable {
-        mutableStateOf("")
+    var title by rememberSaveable(deck?.id) {
+        mutableStateOf(deck?.title.orEmpty())
     }
-    var author by rememberSaveable {
-        mutableStateOf("")
+    var author by rememberSaveable(deck?.id) {
+        mutableStateOf(deck?.author.orEmpty())
     }
-
 
     Dialog(
         onDismissRequest = onDismiss,
@@ -201,7 +212,7 @@ private fun AddFlashcardPageDialog(
                     Text("✗")
                 }
                 Spacer(Modifier.weight(1f))
-                Text("Add flashcards")
+                Text(if (deck == null) "Add flashcards" else "Edit deck")
                 Spacer(Modifier.weight(1f))
                 Button(onClick = {
                     onSave(title.trim(), author.trim())
@@ -246,76 +257,6 @@ private fun AddFlashcardPageDialog(
     }
 }
 
-
-@Composable
-private fun AddFolderDialog(
-    onDismiss: () -> Unit
-) {
-    var folderName by rememberSaveable {
-        mutableStateOf("")
-    }
-    var authorName by rememberSaveable {
-        mutableStateOf("")
-    }
-
-
-    Dialog(
-        onDismissRequest = onDismiss,
-    ) {
-        Column(Modifier
-            .fillMaxWidth()
-            .padding(16.dp)) {
-            Row(Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically) {
-                Button(onClick = onDismiss) {
-                    Text("✗")
-                }
-                Spacer(Modifier.weight(1f))
-                Text("New folder")
-                Spacer(Modifier.weight(1f))
-                Button(onClick = {},
-                    enabled = folderName.isNotBlank()
-                ) {
-                    Text("✓")
-                }
-            }
-
-
-            Card() {
-                OutlinedTextField(
-                    value = folderName,
-                    onValueChange = {folderName = it},
-                    modifier = Modifier.fillMaxWidth(),
-                    placeholder = { Text("Enter folder name.") }
-                )
-            }
-
-
-            Spacer(Modifier.height(8.dp))
-
-
-            Card() {
-                OutlinedTextField(
-                    value = authorName,
-                    onValueChange = {authorName = it},
-                    modifier = Modifier.fillMaxWidth(),
-                    placeholder = { Text("Author") }
-                )
-            }
-
-
-            Spacer(Modifier.height(8.dp))
-
-
-            Text("Select the flashcards to move to the folder.")
-
-
-            // lazy list to render flashcards
-        }
-    }
-}
-
-
 @Composable
 private fun DeckDetailPage(
     deck: FlashcardDeck,
@@ -323,11 +264,16 @@ private fun DeckDetailPage(
     onBack: () -> Unit,
     onAddCard: (front: String, back: String) -> Unit,
     onEditCard: (id: String, front: String, back:String) -> Unit,
-    onDeleteCard: (id: String) -> Unit
+    onDeleteCard: (id: String) -> Unit,
+    onEditDeck: (title: String, author: String) -> Unit,
+    onDeleteDeck: () -> Unit
 ) {
     var showCardEditor by rememberSaveable {mutableStateOf(false)}
     var editingCardId by rememberSaveable {mutableStateOf<String?>(null)}
     val editingCard = cards.firstOrNull{it.id == editingCardId}
+    var deckMenuExpanded by remember { mutableStateOf(false) }
+    var showEditDeckDialog by rememberSaveable { mutableStateOf(false) }
+    var showDeleteDeckDialog by rememberSaveable { mutableStateOf(false) }
 
     if (showCardEditor) {
         CardEditorPage(
@@ -361,9 +307,33 @@ private fun DeckDetailPage(
             Button(onClick = onBack) {
                 Text("<")
             }
+            Text(deck.title, style = MaterialTheme.typography.titleLarge,
+                modifier = Modifier.weight(1f))
+            Box {
+                TextButton(onClick = { deckMenuExpanded = true }) {
+                    Text("⋮")
+                }
 
-
-            Text(deck.title, style = MaterialTheme.typography.titleLarge)
+                DropdownMenu(
+                    expanded = deckMenuExpanded,
+                    onDismissRequest = { deckMenuExpanded = false }
+                ) {
+                    DropdownMenuItem(
+                        text = { Text("Edit") },
+                        onClick = {
+                            deckMenuExpanded = false
+                            showEditDeckDialog = true
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Delete") },
+                        onClick = {
+                            deckMenuExpanded = false
+                            showDeleteDeckDialog = true
+                        }
+                    )
+                }
+            }
         }
         Spacer(Modifier.height(16.dp))
         Text("Cards ${cards.size}")
@@ -397,6 +367,38 @@ private fun DeckDetailPage(
         ) {
             Text("+")
         }
+    }
+
+    if (showEditDeckDialog) {
+        AddFlashcardPageDialog(
+            deck = deck,
+            onDismiss = { showEditDeckDialog = false },
+            onSave = { title, author ->
+                onEditDeck(title, author)
+                showEditDeckDialog = false
+            }
+        )
+    }
+
+    if (showDeleteDeckDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteDeckDialog = false },
+            title = { Text("Delete deck?") },
+            text = { Text("Delete “${deck.title}” and all its cards?") },
+            dismissButton = {
+                TextButton(onClick = { showDeleteDeckDialog = false }) {
+                    Text("Cancel")
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    showDeleteDeckDialog = false
+                    onDeleteDeck()
+                }) {
+                    Text("Delete")
+                }
+            }
+        )
     }
 }
 
