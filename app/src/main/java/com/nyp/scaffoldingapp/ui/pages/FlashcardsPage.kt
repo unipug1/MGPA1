@@ -18,6 +18,8 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.runtime.remember
 import androidx.compose.foundation.lazy.items
 import androidx.activity.compose.BackHandler
+import androidx.compose.runtime.LaunchedEffect
+import kotlinx.coroutines.delay
 
 @Composable
 fun FlashcardsPage(modifier: Modifier = Modifier,
@@ -264,6 +266,11 @@ private fun DeckDetailPage(
     var unmemorisedOnly by rememberSaveable {mutableStateOf(false)}
     var randomOrder by rememberSaveable {mutableStateOf(false)}
     var swapSides by rememberSaveable {mutableStateOf(false)}
+
+    var useTimer by rememberSaveable { mutableStateOf(false) }
+    var secondsPerCard by rememberSaveable { mutableStateOf(15) }
+    var timerOptionsExpanded by remember { mutableStateOf(false) }
+
     var reviewCards by remember {mutableStateOf<List<StudyCard>>(emptyList())}
 
     val unmemorisedCards = cards.filterNot{isMemorised(it.id)}
@@ -299,6 +306,7 @@ private fun DeckDetailPage(
         CardView(
             cards = reviewCards,
             swapSides = swapSides,
+            secondsPerCard = if (useTimer) secondsPerCard else null,
             onBack = { reviewCards = emptyList() },
             onDone = { results ->
                 onReviewDone(results)
@@ -461,6 +469,38 @@ private fun DeckDetailPage(
                         )
                         Text("Swap front and back")
                     }
+
+                    Row(verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text("Use timer")
+                        Switch(
+                            checked = useTimer,
+                            onCheckedChange = {useTimer = it}
+                        )
+                    }
+                    if (useTimer) {
+                        Box {
+                            OutlinedButton(onClick = { timerOptionsExpanded = true }) {
+                                Text("$secondsPerCard seconds per card")
+                            }
+
+                            DropdownMenu(
+                                expanded = timerOptionsExpanded,
+                                onDismissRequest = { timerOptionsExpanded = false }
+                            ) {
+                                listOf(5, 10, 15, 30).forEach { seconds ->
+                                    DropdownMenuItem(
+                                        text = { Text("$seconds seconds") },
+                                        onClick = {
+                                            secondsPerCard = seconds
+                                            timerOptionsExpanded = false
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                    }
                 }
             },
             dismissButton = {
@@ -573,13 +613,34 @@ private fun CardEditorPage(
 private fun CardView(
     cards: List<StudyCard>,
     swapSides: Boolean,
+    secondsPerCard: Int?,
     onBack: () -> Unit,
     onDone: (Map<String, Boolean>) -> Unit
 )
 {
     val decisions = remember { mutableStateListOf<Boolean>() }
     val currentCard = cards.getOrNull(decisions.size)
+
     var showAnswer by remember(currentCard?.id) { mutableStateOf(false) }
+    var hasRevealedAnswer by remember(currentCard?.id) { mutableStateOf(false) }
+    var secondsLeft by remember(currentCard?.id, secondsPerCard) {
+        mutableStateOf(secondsPerCard ?: 0)
+    }
+
+    LaunchedEffect(currentCard?.id, secondsPerCard, hasRevealedAnswer) {
+        if (currentCard != null && secondsPerCard != null && !hasRevealedAnswer) {
+            while (secondsLeft > 0) {
+                delay(1_000L)
+                if (hasRevealedAnswer) break
+                secondsLeft--
+            }
+
+            if (secondsLeft == 0 && !hasRevealedAnswer) {
+                showAnswer = true
+                hasRevealedAnswer = true
+            }
+        }
+    }
 
     BackHandler(onBack = onBack)
 
@@ -597,8 +658,22 @@ private fun CardView(
             val prompt = if (swapSides) currentCard.back else currentCard.front
             val answer = if (swapSides) currentCard.front else currentCard.back
 
+            if (secondsPerCard != null) {
+                Text(
+                    when {
+                        secondsLeft == 0 -> "Time’s up"
+                        hasRevealedAnswer -> "Timer stopped"
+                        else -> "$secondsLeft seconds left"
+                    }
+                )
+            }
+
             Card(
-                onClick = { showAnswer = !showAnswer },
+                onClick = { showAnswer = !showAnswer
+                    if (showAnswer) {
+                        hasRevealedAnswer = true
+                    }
+                },
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text(
@@ -634,13 +709,6 @@ private fun CardView(
         }
     }
 }
-
-
-@Composable
-private fun StartTest() {
-    Text("Test")
-}
-
 
 // preview
 @Preview
