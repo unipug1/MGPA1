@@ -6,7 +6,8 @@ data class FlashcardDeck(
     val id: String,
     val title: String,
     val author: String,
-    val folderId: String? = null
+    val folderId: String? = null,
+    val isArchived: Boolean = false
 )
 
 data class StudyCard(

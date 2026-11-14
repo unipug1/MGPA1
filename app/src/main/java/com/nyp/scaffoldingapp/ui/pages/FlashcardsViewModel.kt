@@ -88,4 +88,11 @@ class FlashcardsViewModel : ViewModel() {
             deckItems[index] = deckItems[index].copy(folderId = folderId)
         }
     }
+
+    fun setDeckArchived(deckId: String, isArchived: Boolean) {
+        val index = deckItems.indexOfFirst { it.id == deckId }
+        if (index >= 0) {
+            deckItems[index] = deckItems[index].copy(isArchived = isArchived)
+        }
+    }
 }

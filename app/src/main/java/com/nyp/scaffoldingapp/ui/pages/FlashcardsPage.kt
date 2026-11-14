@@ -32,6 +32,7 @@ fun FlashcardsPage(modifier: Modifier = Modifier,
     var moreOptionsExpanded by rememberSaveable {mutableStateOf(false)}
 
     val decks = viewModel.decks
+    val activeDecks = decks.filterNot { it.isArchived }
     val cards = viewModel.cards
     val folders = viewModel.folders
 
@@ -42,6 +43,7 @@ fun FlashcardsPage(modifier: Modifier = Modifier,
 
     var selectedDeckId by rememberSaveable {mutableStateOf<String?>(null)}
     val selectedDeck = decks.firstOrNull{it.id == selectedDeckId}
+    var showArchived by rememberSaveable { mutableStateOf(false) }
 
     if (selectedDeck != null) {
         DeckDetailPage(
@@ -70,6 +72,10 @@ fun FlashcardsPage(modifier: Modifier = Modifier,
             onMoveDeck = { folderId ->
                 viewModel.moveDeck(selectedDeck.id, folderId)
             },
+            onArchiveDeck = {
+                viewModel.setDeckArchived(selectedDeck.id, isArchived = true)
+                selectedDeckId = null
+            }
         )
         return
     }
@@ -82,6 +88,17 @@ fun FlashcardsPage(modifier: Modifier = Modifier,
             decks = decks.filter { it.folderId == selectedFolder.id },
             onOpenDeck = { deckId -> selectedDeckId = deckId },
             onBack = { selectedFolderId = null }
+        )
+        return
+    }
+
+    if (showArchived) {
+        ArchivedDecksPage(
+            decks = decks.filter { it.isArchived },
+            onRestore = { deckId ->
+                viewModel.setDeckArchived(deckId, isArchived = false)
+            },
+            onBack = { showArchived = false }
         )
         return
     }
@@ -144,7 +161,10 @@ fun FlashcardsPage(modifier: Modifier = Modifier,
 
                         DropdownMenuItem(
                             text = { Text("Archived") },
-                            onClick = { moreOptionsExpanded = false }
+                            onClick = {
+                                moreOptionsExpanded = false
+                                showArchived = true
+                            }
                         )
 
                         DropdownMenuItem(
@@ -213,7 +233,6 @@ fun FlashcardsPage(modifier: Modifier = Modifier,
         )
     }
 }
-
 
 @Composable
 private fun AddFlashcardPageDialog(
@@ -298,7 +317,8 @@ private fun DeckDetailPage(
     isMemorised: (String) -> Boolean,
     onReviewDone: (Map<String, Boolean>) -> Unit,
     folders: List<FlashcardFolder>,
-    onMoveDeck: (String?) -> Unit
+    onMoveDeck: (String?) -> Unit,
+    onArchiveDeck: () -> Unit
 ) {
     var showCardEditor by rememberSaveable {mutableStateOf(false)}
     var editingCardId by rememberSaveable {mutableStateOf<String?>(null)}
@@ -405,6 +425,13 @@ private fun DeckDetailPage(
                         onClick = {
                             deckMenuExpanded = false
                             showMoveDeckDialog = true
+                        }
+                    )
+                    DropdownMenuItem(
+                        text = { Text("Archive") },
+                        onClick = {
+                            deckMenuExpanded = false
+                            onArchiveDeck()
                         }
                     )
                 }
@@ -927,6 +954,45 @@ private fun FolderPage(
                         modifier = Modifier.fillMaxWidth()
                     ) {
                         Text(deck.title, modifier = Modifier.padding(16.dp))
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ArchivedDecksPage(
+    decks: List<FlashcardDeck>,
+    onRestore: (String) -> Unit,
+    onBack: () -> Unit
+) {
+    BackHandler(onBack = onBack)
+
+    Column(modifier = Modifier.fillMaxSize().padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp))
+    {
+        Row(verticalAlignment = Alignment.CenterVertically)
+        {
+            Button(onClick = onBack) {
+                Text("<")
+            }
+            Text("Archived", style = MaterialTheme.typography.titleLarge)
+        }
+
+        LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            if (decks.isEmpty()) {
+                item {Text("No archived decks")}
+            }
+
+            items(decks, key = {it.id}) {deck ->
+                Row(Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically)
+                {
+                    Text(deck.title, Modifier.weight(1f))
+                    Button(onClick = {onRestore(deck.id)}) {
+                        Text("Unarchive")
                     }
                 }
             }
