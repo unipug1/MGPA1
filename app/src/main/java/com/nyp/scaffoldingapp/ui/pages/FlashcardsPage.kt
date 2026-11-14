@@ -251,6 +251,7 @@ private fun DeckDetailPage(
     onDeleteDeck: () -> Unit
 ) {
     var showCardEditor by rememberSaveable {mutableStateOf(false)}
+    var showMemorise by rememberSaveable {mutableStateOf(false)}
     var editingCardId by rememberSaveable {mutableStateOf<String?>(null)}
     val editingCard = cards.firstOrNull{it.id == editingCardId}
     var deckMenuExpanded by remember { mutableStateOf(false) }
@@ -279,6 +280,14 @@ private fun DeckDetailPage(
                 showCardEditor = false
                 editingCardId = null
             }
+        )
+        return
+    }
+
+    if (showMemorise && cards.isNotEmpty()) {
+        CardView(
+            card = cards.first(),
+            onBack = { showMemorise = false }
         )
         return
     }
@@ -322,6 +331,12 @@ private fun DeckDetailPage(
             }
         }
         Spacer(Modifier.height(16.dp))
+        Button(
+            onClick = { showMemorise = true },
+            enabled = cards.isNotEmpty()
+        ) {
+            Text("Memorise")
+        }
         Text("Cards ${cards.size}")
 
         LazyColumn(Modifier.fillMaxWidth().weight(1f),
@@ -471,8 +486,33 @@ private fun CardEditorPage(
 
 
 @Composable
-private fun CardView() {
-    Text("Memorise")
+private fun CardView(
+    card: StudyCard,
+    onBack: () -> Unit
+)
+{
+    var showAnswer by rememberSaveable {mutableStateOf(false)}
+
+    BackHandler(onBack = onBack)
+
+    Column(modifier = Modifier.fillMaxSize().padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    )
+    {
+        Button(onClick = onBack) {
+            Text("Back")
+        }
+
+        Text("Tap the card to reveal the answer")
+
+        Card(onClick = {showAnswer = !showAnswer},
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text(text = if (showAnswer) card.back else card.front,
+                modifier = Modifier.padding(16.dp)
+            )
+        }
+    }
 }
 
 
