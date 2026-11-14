@@ -20,6 +20,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.LaunchedEffect
 import kotlinx.coroutines.delay
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.ui.input.pointer.pointerInput
 
 @Composable
 fun FlashcardsPage(modifier: Modifier = Modifier,
@@ -619,7 +621,14 @@ private fun CardView(
 )
 {
     val decisions = remember { mutableStateListOf<Boolean>() }
-    val currentCard = cards.getOrNull(decisions.size)
+    val cardIndex = decisions.size
+    val currentCard = cards.getOrNull(cardIndex)
+
+    fun gradeCard(known: Boolean) {
+        if (cardIndex == decisions.size && cardIndex < cards.size) {
+            decisions.add(known)
+        }
+    }
 
     var showAnswer by remember(currentCard?.id) { mutableStateOf(false) }
     var hasRevealedAnswer by remember(currentCard?.id) { mutableStateOf(false) }
@@ -674,7 +683,25 @@ private fun CardView(
                         hasRevealedAnswer = true
                     }
                 },
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .pointerInput(currentCard.id) {
+                        val swipeThreshold = 64.dp.toPx()
+                        var dragDistance = 0f
+
+                        detectHorizontalDragGestures(
+                            onDragStart = { dragDistance = 0f },
+                            onHorizontalDrag = { _, amount ->
+                                dragDistance += amount
+                            },
+                            onDragEnd = {
+                                when {
+                                    dragDistance <= -swipeThreshold -> gradeCard(known = true)
+                                    dragDistance >= swipeThreshold -> gradeCard(known = false)
+                                }
+                            }
+                        )
+                    }
             ) {
                 Text(
                     text = if (showAnswer) answer else prompt,
@@ -683,10 +710,10 @@ private fun CardView(
             }
 
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(onClick = { decisions.add(true) }) {
+                Button(onClick = { gradeCard(known = true) }) {
                     Text("Known")
                 }
-                Button(onClick = { decisions.add(false) }) {
+                Button(onClick = { gradeCard(known = false) }) {
                     Text("Still learning")
                 }
             }
