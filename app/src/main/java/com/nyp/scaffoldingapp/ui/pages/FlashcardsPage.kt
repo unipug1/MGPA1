@@ -50,11 +50,14 @@ fun FlashcardsPage(modifier: Modifier = Modifier,
                     )
                 )
             },
-            onEditCard = { id, front, back ->
+            onEditCard = {id, front, back ->
                 val index = cards.indexOfFirst { it.id == id }
                 if (index >= 0) {
                     cards[index] = cards[index].copy(front = front, back = back)
                 }
+            },
+            onDeleteCard = {id ->
+                cards.removeAll {it.id == id}
             }
         )
         return
@@ -319,7 +322,8 @@ private fun DeckDetailPage(
     cards: List<StudyCard>,
     onBack: () -> Unit,
     onAddCard: (front: String, back: String) -> Unit,
-    onEditCard: (id: String, front: String, back:String) -> Unit
+    onEditCard: (id: String, front: String, back:String) -> Unit,
+    onDeleteCard: (id: String) -> Unit
 ) {
     var showCardEditor by rememberSaveable {mutableStateOf(false)}
     var editingCardId by rememberSaveable {mutableStateOf<String?>(null)}
@@ -335,6 +339,11 @@ private fun DeckDetailPage(
                     onAddCard(front, back)
                 }
 
+                showCardEditor = false
+                editingCardId = null
+            },
+            onDelete = {
+                editingCard?.let {onDeleteCard(it.id)}
                 showCardEditor = false
                 editingCardId = null
             }
@@ -396,7 +405,8 @@ private fun DeckDetailPage(
 private fun CardEditorPage(
     onBack: () -> Unit,
     onSave: (front: String, back: String) -> Unit,
-    card: StudyCard? = null
+    card: StudyCard? = null,
+    onDelete: () -> Unit
 )
 {
     var front by rememberSaveable(card?.id) {
@@ -404,6 +414,9 @@ private fun CardEditorPage(
     }
     var back by rememberSaveable(card?.id) {
         mutableStateOf(card?.back.orEmpty())
+    }
+    var showDeleteDialog by rememberSaveable(card?.id) {
+        mutableStateOf(false)
     }
 
     BackHandler(onBack = onBack)
@@ -438,7 +451,33 @@ private fun CardEditorPage(
             ) {
                 Text("Save")
             }
+            if (card != null) {
+                TextButton(onClick = { showDeleteDialog = true }) {
+                    Text("Delete")
+                }
+            }
         }
+    }
+
+    if (card != null && showDeleteDialog) {
+        AlertDialog(
+            onDismissRequest = { showDeleteDialog = false },
+            title = { Text("Delete card?") },
+            text = { Text("Remove this card from the deck?") },
+            dismissButton = {
+                TextButton(onClick = { showDeleteDialog = false }) {
+                    Text("Cancel")
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    showDeleteDialog = false
+                    onDelete()
+                }) {
+                    Text("Delete")
+                }
+            }
+        )
     }
 }
 
