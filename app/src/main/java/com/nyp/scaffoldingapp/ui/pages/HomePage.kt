@@ -1,8 +1,9 @@
 package com.nyp.scaffoldingapp.ui.pages
 
 
+
+
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.Arrangement
@@ -34,12 +35,13 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
-import java.util.Timer
 
 
 /*
 * Page 1 is the home page
 */
+
+
 
 
 @Composable
@@ -48,6 +50,8 @@ fun HomePage(modifier: Modifier = Modifier, viewModel: HomeViewModel) {
     var showAddSubjectDialogue by rememberSaveable {mutableStateOf(false)}
     var subjectToEdit by rememberSaveable {mutableStateOf<Subject?>(null)}
     var subjectToDelete by rememberSaveable {mutableStateOf<Subject?>(null)}
+
+
 
 
     Surface(
@@ -76,6 +80,8 @@ fun HomePage(modifier: Modifier = Modifier, viewModel: HomeViewModel) {
                         totalSeconds % 60)
 
 
+
+
                     StudyScreen(activeSubject, focusTimeText, isTimerRunning = state.isTimerRunning, onToggleTimer = viewModel::toggleTimer)
                 }
                 else {
@@ -100,7 +106,11 @@ fun HomePage(modifier: Modifier = Modifier, viewModel: HomeViewModel) {
                         }
 
 
+
+
                         Spacer(Modifier.height(20.dp))
+
+
 
 
                         Card(Modifier.fillMaxWidth(),
@@ -119,7 +129,11 @@ fun HomePage(modifier: Modifier = Modifier, viewModel: HomeViewModel) {
                                 Text(text = formattedTime, style = MaterialTheme.typography.headlineLarge)
 
 
+
+
                                 Spacer(Modifier.height(20.dp))
+
+
 
 
                                 val restHours = state.currentRestTime / 3600
@@ -129,6 +143,8 @@ fun HomePage(modifier: Modifier = Modifier, viewModel: HomeViewModel) {
                                 Text(text = restFormattedTime, style = MaterialTheme.typography.headlineSmall)
                             }
                         }
+
+
 
 
                         HorizontalDivider(thickness = 2.dp)
@@ -144,6 +160,8 @@ fun HomePage(modifier: Modifier = Modifier, viewModel: HomeViewModel) {
                                 subjectToDelete = selectedSubject
                             }
                         )
+
+
 
 
                         Spacer(Modifier.weight(1f))
@@ -166,6 +184,8 @@ fun HomePage(modifier: Modifier = Modifier, viewModel: HomeViewModel) {
     }
 
 
+
+
     // add subject
     if (showAddSubjectDialogue) {
         AddSubjectDialog(
@@ -177,6 +197,8 @@ fun HomePage(modifier: Modifier = Modifier, viewModel: HomeViewModel) {
             }
         )
     }
+
+
 
 
     // edit subject
@@ -191,6 +213,8 @@ fun HomePage(modifier: Modifier = Modifier, viewModel: HomeViewModel) {
     }
 
 
+
+
     // delete subject
     subjectToDelete?.let { deletedSubject ->
         DeleteSubjectDialog(
@@ -203,6 +227,8 @@ fun HomePage(modifier: Modifier = Modifier, viewModel: HomeViewModel) {
         )
     }
 }
+
+
 
 
 @Composable
@@ -227,6 +253,8 @@ fun SubjectListSection(
 }
 
 
+
+
 @Composable
 fun AddSubjectDialog(
     initialSubject: Subject? = null, // null for add, non-null for edit
@@ -237,6 +265,8 @@ fun AddSubjectDialog(
     val subjectNameFocusRequester = remember { FocusRequester() }
     var subjectColor by rememberSaveable { mutableStateOf(initialSubject?.colorHex ?: "#9E9E9E") }
     var showSelectColorDialogue by rememberSaveable { mutableStateOf(false) }
+
+
 
 
     Dialog(onDismissRequest = onDismiss,
@@ -269,6 +299,8 @@ fun AddSubjectDialog(
                 }
 
 
+
+
                 // subject name
                 Spacer(Modifier.height(30.dp))
                 Card(modifier = Modifier
@@ -279,13 +311,14 @@ fun AddSubjectDialog(
                         onValueChange = {subjectName = it},
                         modifier = Modifier.fillMaxWidth()
                             .focusRequester(subjectNameFocusRequester),
-                        placeholder = {Text("e.g. math, english, science, geography...")},
-                        singleLine = true
+                        placeholder = {Text("e.g. math, english, science, geography...")}
                     )
                     LaunchedEffect(Unit) {
                         subjectNameFocusRequester.requestFocus()
                     }
                 }
+
+
 
 
                 // subject color
@@ -299,6 +332,8 @@ fun AddSubjectDialog(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween) {
                         Text("Select Color")
+
+
 
 
                         val parsedColor = try {
@@ -319,6 +354,8 @@ fun AddSubjectDialog(
     }
 
 
+
+
     // add more colors later
     val availableColors = listOf(
         "#EA1E63", // red pink
@@ -330,8 +367,12 @@ fun AddSubjectDialog(
     )
 
 
+
+
     if (showSelectColorDialogue) {
         var tempSelectedColor by rememberSaveable {mutableStateOf(subjectColor)}
+
+
 
 
         Dialog(onDismissRequest = onDismiss) {
@@ -345,6 +386,8 @@ fun AddSubjectDialog(
                 ) {
                     Spacer(Modifier.height(16.dp))
                     Text("Select color", style = MaterialTheme.typography.headlineSmall)
+
+
 
 
                     // color selection
@@ -364,6 +407,8 @@ fun AddSubjectDialog(
                             }
 
 
+
+
                             Box(Modifier
                                 .size(40.dp)
                                 .background(colorInt, shape = CircleShape)
@@ -376,6 +421,8 @@ fun AddSubjectDialog(
                             }
                         }
                     }
+
+
 
 
                     // buttons
@@ -408,6 +455,8 @@ fun AddSubjectDialog(
 }
 
 
+
+
 @Composable
 fun DeleteSubjectDialog(
     subject: Subject,
@@ -427,10 +476,14 @@ fun DeleteSubjectDialog(
                 Text("Delete subject", style = MaterialTheme.typography.headlineMedium)
 
 
+
+
                 // content
                 Text("Are you sure you want to delete '${subject.name}'? All To-Dos in this subject will be deleted.")
                 Spacer(Modifier.height(10.dp))
                 Text("Your study time logs won't be deleted.")
+
+
 
 
                 // buttons
@@ -463,6 +516,10 @@ fun DeleteSubjectDialog(
 
 
 
+
+
+
+
 @Composable
 fun SubjectRowItem(subject: Subject,
                    onClick: () -> Unit,
@@ -477,7 +534,11 @@ fun SubjectRowItem(subject: Subject,
     }
 
 
+
+
     var showMenu by rememberSaveable {mutableStateOf(false)}
+
+
 
 
     Card(modifier = Modifier
@@ -506,6 +567,8 @@ fun SubjectRowItem(subject: Subject,
             }
 
 
+
+
             // right group
             Row(
                 verticalAlignment = Alignment.CenterVertically,
@@ -517,10 +580,14 @@ fun SubjectRowItem(subject: Subject,
                 val formattedTime = String.format("%d:%02d:%02d", hours, minutes, seconds)
 
 
+
+
                 Text(
                     text = formattedTime,
                     style = MaterialTheme.typography.bodyLarge
                 )
+
+
 
 
                 // edit subject button
@@ -536,6 +603,8 @@ fun SubjectRowItem(subject: Subject,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
+
+
 
 
                     DropdownMenu(expanded = showMenu,
@@ -567,6 +636,8 @@ fun SubjectRowItem(subject: Subject,
 }
 
 
+
+
 @Composable
 private fun StudyView1(modifier: Modifier = Modifier,
                        subject: Subject,
@@ -588,6 +659,8 @@ private fun StudyView1(modifier: Modifier = Modifier,
         }
 
 
+
+
         Card(Modifier.fillMaxWidth()) {
             Text("Current focus time")
             Text(focusTimeText)
@@ -599,6 +672,8 @@ private fun StudyView1(modifier: Modifier = Modifier,
         }
 
 
+
+
         Card(Modifier.fillMaxWidth()) {
             Column(Modifier.padding(12.dp)) {
                 Text("Study Squad")
@@ -608,6 +683,8 @@ private fun StudyView1(modifier: Modifier = Modifier,
         }
     }
 }
+
+
 
 
 @Composable
@@ -633,6 +710,8 @@ private fun StudyView2(modifier: Modifier = Modifier,
         }
 
 
+
+
         Text("Focusing", style = MaterialTheme.typography.bodySmall)
         Text(focusTimeText)
         Row(Modifier.fillMaxWidth()) {
@@ -645,7 +724,11 @@ private fun StudyView2(modifier: Modifier = Modifier,
         }
 
 
+
+
         // study icon
+
+
 
 
         // pause icon
@@ -656,12 +739,16 @@ private fun StudyView2(modifier: Modifier = Modifier,
 }
 
 
+
+
 @Composable
 private fun StudyScreen(subject: Subject, focusTimeText: String, isTimerRunning: Boolean, onToggleTimer: () -> Unit) {
     var showGroups by rememberSaveable {
         mutableStateOf(true)
     }
     val swapView = {showGroups = !showGroups}
+
+
 
 
     if (showGroups) {
@@ -680,3 +767,4 @@ private fun MockPage1Preview() {
     val viewModel = HomeViewModel()
     MaterialTheme { HomePage(Modifier, viewModel) }
 }
+
