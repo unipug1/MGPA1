@@ -20,26 +20,20 @@ import androidx.compose.foundation.lazy.items
 import java.util.UUID
 import androidx.activity.compose.BackHandler
 
-
 @Composable
 fun FlashcardsPage(modifier: Modifier = Modifier,
-                   onBack: () -> Unit = {}) {
-
-
+                   onBack: () -> Unit = {}
+) {
     var newOptionsExpanded by rememberSaveable {mutableStateOf(false)}
     var moreOptionsExpanded by rememberSaveable {mutableStateOf(false)}
-
 
     val decks = remember { mutableStateListOf<FlashcardDeck>() }
     var showAddDeckDialog by rememberSaveable {mutableStateOf(false)}
 
-
     var selectedDeckId by rememberSaveable {mutableStateOf<String?>(null)}
     val selectedDeck = decks.firstOrNull{it.id == selectedDeckId}
 
-
     val cards = remember {mutableStateListOf<StudyCard>()}
-
 
     if (selectedDeck != null) {
         DeckDetailPage(
@@ -55,11 +49,16 @@ fun FlashcardsPage(modifier: Modifier = Modifier,
                         back = back
                     )
                 )
+            },
+            onEditCard = { id, front, back ->
+                val index = cards.indexOfFirst { it.id == id }
+                if (index >= 0) {
+                    cards[index] = cards[index].copy(front = front, back = back)
+                }
             }
         )
         return
     }
-
 
     Surface(
         modifier = Modifier.fillMaxSize(),
@@ -319,25 +318,31 @@ private fun DeckDetailPage(
     deck: FlashcardDeck,
     cards: List<StudyCard>,
     onBack: () -> Unit,
-    onAddCard: (front: String, back: String) -> Unit
+    onAddCard: (front: String, back: String) -> Unit,
+    onEditCard: (id: String, front: String, back:String) -> Unit
 ) {
     var showCardEditor by rememberSaveable {mutableStateOf(false)}
-
+    var editingCardId by rememberSaveable {mutableStateOf<String?>(null)}
+    val editingCard = cards.firstOrNull{it.id == editingCardId}
 
     if (showCardEditor) {
         CardEditorPage(
             onBack = {showCardEditor = false},
             onSave = {front, back ->
-                onAddCard(front, back)
+                if (editingCard != null) {
+                    onEditCard(editingCard.id, front, back)
+                } else {
+                    onAddCard(front, back)
+                }
+
                 showCardEditor = false
+                editingCardId = null
             }
         )
         return
     }
 
-
     BackHandler(onBack = onBack)
-
 
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
         Row(Modifier.fillMaxWidth(),
@@ -354,7 +359,6 @@ private fun DeckDetailPage(
         Spacer(Modifier.height(16.dp))
         Text("Cards ${cards.size}")
 
-
         LazyColumn(Modifier.fillMaxWidth().weight(1f),
             verticalArrangement = Arrangement.spacedBy(8.dp))
         {
@@ -362,9 +366,12 @@ private fun DeckDetailPage(
                 item {Text("Tap the + button to add the flashcards")}
             }
 
-
             items(cards, key = {it.id}) {card ->
-                Card(Modifier.fillMaxWidth()) {
+                Card(onClick = {
+                        editingCardId = card.id
+                        showCardEditor = true
+                    },
+                    Modifier.fillMaxWidth()) {
                     Column(Modifier.padding(12.dp)) {
                         Text(card.front)
                         Text(card.back)
@@ -373,9 +380,11 @@ private fun DeckDetailPage(
             }
         }
 
-
         ElevatedButton(
-            onClick = {showCardEditor = true}
+            onClick = {
+                editingCardId = null
+                showCardEditor = true
+            }
         ) {
             Text("+")
         }
@@ -386,22 +395,25 @@ private fun DeckDetailPage(
 @Composable
 private fun CardEditorPage(
     onBack: () -> Unit,
-    onSave: (front: String, back: String) -> Unit
+    onSave: (front: String, back: String) -> Unit,
+    card: StudyCard? = null
 )
 {
-    var front by rememberSaveable {mutableStateOf("")}
-    var back by rememberSaveable {mutableStateOf("")}
-
+    var front by rememberSaveable(card?.id) {
+        mutableStateOf(card?.front.orEmpty())
+    }
+    var back by rememberSaveable(card?.id) {
+        mutableStateOf(card?.back.orEmpty())
+    }
 
     BackHandler(onBack = onBack)
-
 
     Column(Modifier.fillMaxSize().padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp))
     {
-        Text("Add card", style = MaterialTheme.typography.titleLarge)
-
-
+        Text(text = if (card == null) "Add card" else "Edit card",
+            style = MaterialTheme.typography.titleLarge
+        )
         OutlinedTextField(
             value = front,
             onValueChange = { front = it },
@@ -409,14 +421,12 @@ private fun CardEditorPage(
             modifier = Modifier.fillMaxWidth()
         )
 
-
         OutlinedTextField(
             value = back,
             onValueChange = { back = it },
             label = { Text("Answer") },
             modifier = Modifier.fillMaxWidth()
         )
-
 
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             TextButton(onClick = onBack) {
