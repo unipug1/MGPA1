@@ -1,9 +1,12 @@
 package com.nyp.scaffoldingapp.ui.pages
 
+import androidx.annotation.Nullable
+
 data class FlashcardDeck(
     val id: String,
     val title: String,
-    val author: String
+    val author: String,
+    val folderId: String? = null
 )
 
 data class StudyCard(

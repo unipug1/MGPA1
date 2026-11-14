@@ -65,7 +65,11 @@ fun FlashcardsPage(modifier: Modifier = Modifier,
                 selectedDeckId = null
             },
             isMemorised = viewModel::isMemorised,
-            onReviewDone = viewModel::applyReview
+            onReviewDone = viewModel::applyReview,
+            folders = folders,
+            onMoveDeck = { folderId ->
+                viewModel.moveDeck(selectedDeck.id, folderId)
+            },
         )
         return
     }
@@ -75,6 +79,8 @@ fun FlashcardsPage(modifier: Modifier = Modifier,
     if (selectedFolder != null) {
         FolderPage(
             folder = selectedFolder,
+            decks = decks.filter { it.folderId == selectedFolder.id },
+            onOpenDeck = { deckId -> selectedDeckId = deckId },
             onBack = { selectedFolderId = null }
         )
         return
@@ -169,7 +175,7 @@ fun FlashcardsPage(modifier: Modifier = Modifier,
                     }
                 }
 
-                items(decks, key = {it.id}) { deck ->
+                items(decks.filter { it.folderId == null }, key = { it.id }) { deck ->
                     Card(onClick = {selectedDeckId = deck.id},
                         Modifier.fillMaxWidth()) {
                         Column(Modifier.padding(16.dp)) {
@@ -198,9 +204,10 @@ fun FlashcardsPage(modifier: Modifier = Modifier,
 
     if (showAddFolderDialog) {
         AddFolderDialog(
+            availableDecks = decks.filter{it.folderId == null},
             onDismiss = {showAddFolderDialog = false},
-            onSave = {name, author ->
-                viewModel.addFolder(name, author)
+            onSave = {name, author, selectedDeckIds ->
+                viewModel.addFolder(name, author, selectedDeckIds)
                 showAddFolderDialog = false
             }
         )
@@ -289,7 +296,9 @@ private fun DeckDetailPage(
     onEditDeck: (title: String, author: String) -> Unit,
     onDeleteDeck: () -> Unit,
     isMemorised: (String) -> Boolean,
-    onReviewDone: (Map<String, Boolean>) -> Unit
+    onReviewDone: (Map<String, Boolean>) -> Unit,
+    folders: List<FlashcardFolder>,
+    onMoveDeck: (String?) -> Unit
 ) {
     var showCardEditor by rememberSaveable {mutableStateOf(false)}
     var editingCardId by rememberSaveable {mutableStateOf<String?>(null)}
@@ -297,6 +306,8 @@ private fun DeckDetailPage(
     var deckMenuExpanded by remember { mutableStateOf(false) }
     var showEditDeckDialog by rememberSaveable { mutableStateOf(false) }
     var showDeleteDeckDialog by rememberSaveable { mutableStateOf(false) }
+
+    var showMoveDeckDialog by rememberSaveable { mutableStateOf(false) }
 
     // memorise
     var showMemoriseSetup by rememberSaveable {mutableStateOf(false)}
@@ -388,6 +399,14 @@ private fun DeckDetailPage(
                             showDeleteDeckDialog = true
                         }
                     )
+                    DropdownMenuItem(
+                        text = { Text("Move to folder") },
+                        enabled = folders.isNotEmpty() || deck.folderId != null,
+                        onClick = {
+                            deckMenuExpanded = false
+                            showMoveDeckDialog = true
+                        }
+                    )
                 }
             }
         }
@@ -460,6 +479,45 @@ private fun DeckDetailPage(
                     onDeleteDeck()
                 }) {
                     Text("Delete")
+                }
+            }
+        )
+    }
+
+    if (showMoveDeckDialog) {
+        AlertDialog(
+            onDismissRequest = { showMoveDeckDialog = false },
+            title = { Text("Move deck") },
+            text = {
+                LazyColumn(modifier = Modifier.heightIn(max = 240.dp)) {
+                    item {
+                        TextButton(
+                            enabled = deck.folderId != null,
+                            onClick = {
+                                onMoveDeck(null)
+                                showMoveDeckDialog = false
+                            }
+                        ) {
+                            Text("Main library")
+                        }
+                    }
+
+                    items(folders, key = { it.id }) { folder ->
+                        TextButton(
+                            enabled = deck.folderId != folder.id,
+                            onClick = {
+                                onMoveDeck(folder.id)
+                                showMoveDeckDialog = false
+                            }
+                        ) {
+                            Text(folder.name)
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showMoveDeckDialog = false }) {
+                    Text("Cancel")
                 }
             }
         )
@@ -774,11 +832,13 @@ private fun CardView(
 
 @Composable
 private fun AddFolderDialog(
+    availableDecks: List<FlashcardDeck>,
     onDismiss: () -> Unit,
-    onSave: (name: String, author: String) -> Unit
+    onSave: (String, String, List<String>) -> Unit
 ) {
     var name by rememberSaveable {mutableStateOf("")}
     var author by rememberSaveable {mutableStateOf("")}
+    var selectedDeckIds by rememberSaveable {mutableStateOf(arrayListOf<String>())}
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -797,6 +857,26 @@ private fun AddFolderDialog(
                     label = { Text("Author (optional)") },
                     modifier = Modifier.fillMaxWidth()
                 )
+
+                if (availableDecks.isNotEmpty()) {
+                    Text("Select decks to move")
+                    LazyColumn(modifier = Modifier.heightIn(max = 160.dp)) {
+                        items(availableDecks, key = { it.id }) { deck ->
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Checkbox(
+                                    checked = deck.id in selectedDeckIds,
+                                    onCheckedChange = { checked ->
+                                        selectedDeckIds = ArrayList(
+                                            if (checked) selectedDeckIds + deck.id
+                                            else selectedDeckIds - deck.id
+                                        )
+                                    }
+                                )
+                                Text(deck.title)
+                            }
+                        }
+                    }
+                }
             }
         },
         dismissButton = {
@@ -806,7 +886,7 @@ private fun AddFolderDialog(
         },
         confirmButton = {
             Button(
-                onClick = { onSave(name.trim(), author.trim()) },
+                onClick = { onSave(name.trim(), author.trim(), selectedDeckIds) },
                 enabled = name.isNotBlank()
             ) {
                 Text("✓")
@@ -818,7 +898,10 @@ private fun AddFolderDialog(
 @Composable
 private fun FolderPage(
     folder: FlashcardFolder,
-    onBack: () -> Unit
+    decks: List<FlashcardDeck>,
+    onOpenDeck: (String) -> Unit,
+    onBack: () -> Unit,
+
 ) {
     BackHandler(onBack = onBack)
 
@@ -834,7 +917,20 @@ private fun FolderPage(
             Text(folder.name, style = MaterialTheme.typography.titleLarge)
         }
 
-        Text("No decks in this folder yet.")
+        if (decks.isEmpty()) {
+            Text("No decks in this folder yet.")
+        } else {
+            LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                items(decks, key = { it.id }) { deck ->
+                    Card(
+                        onClick = { onOpenDeck(deck.id) },
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(deck.title, modifier = Modifier.padding(16.dp))
+                    }
+                }
+            }
+        }
     }
 }
 

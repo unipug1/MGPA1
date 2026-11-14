@@ -70,13 +70,22 @@ class FlashcardsViewModel : ViewModel() {
         memorisedById.putAll(results)
     }
 
-    fun addFolder(name: String, author: String) {
-        folderItems.add(
-            FlashcardFolder(
-                id = UUID.randomUUID().toString(),
-                name = name,
-                author = author
-            )
+    fun addFolder(name: String, author: String, selectedDeckIds: List<String> = emptyList()) {
+        val folder = FlashcardFolder(
+            id = UUID.randomUUID().toString(),
+            name = name,
+            author = author
         )
+        folderItems.add(folder)
+        selectedDeckIds.forEach { deckId -> moveDeck(deckId, folder.id) }
+    }
+
+    fun moveDeck(deckId: String, folderId: String?) {
+        if (folderId != null && folderItems.none { it.id == folderId }) return
+
+        val index = deckItems.indexOfFirst { it.id == deckId }
+        if (index >= 0) {
+            deckItems[index] = deckItems[index].copy(folderId = folderId)
+        }
     }
 }
