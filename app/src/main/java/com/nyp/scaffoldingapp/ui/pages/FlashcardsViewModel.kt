@@ -3,10 +3,13 @@ package com.nyp.scaffoldingapp.ui.pages
 import androidx.compose.runtime.mutableStateListOf
 import androidx.lifecycle.ViewModel
 import java.util.UUID
+import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.runtime.mutableStateOf
 
 class FlashcardsViewModel : ViewModel() {
     private val deckItems = mutableStateListOf<FlashcardDeck>()
     private val cardItems = mutableStateListOf<StudyCard>()
+    private val memorisedById = mutableStateMapOf<String, Boolean>()
 
     val decks: List<FlashcardDeck> get() = deckItems
     val cards: List<StudyCard> get() = cardItems
@@ -40,6 +43,7 @@ class FlashcardsViewModel : ViewModel() {
     }
 
     fun deleteCard(id: String) {
+        memorisedById.remove(id)
         cardItems.removeAll { it.id == id }
     }
 
@@ -51,7 +55,16 @@ class FlashcardsViewModel : ViewModel() {
     }
 
     fun deleteDeck(id: String) {
+        cardItems.filter { it.deckId == id }.forEach { card ->
+            memorisedById.remove(card.id)
+        }
+
         cardItems.removeAll { it.deckId == id }
         deckItems.removeAll { it.id == id }
+    }
+
+    fun isMemorised(cardId: String): Boolean = memorisedById[cardId] == true
+    fun applyReview(results: Map<String, Boolean>) {
+        memorisedById.putAll(results)
     }
 }

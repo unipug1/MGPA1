@@ -17,9 +17,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.window.Dialog
 import androidx.compose.runtime.remember
 import androidx.compose.foundation.lazy.items
-import java.util.UUID
 import androidx.activity.compose.BackHandler
-import androidx.lifecycle.viewmodel.compose.viewModel
 
 @Composable
 fun FlashcardsPage(modifier: Modifier = Modifier,
@@ -57,7 +55,9 @@ fun FlashcardsPage(modifier: Modifier = Modifier,
             onDeleteDeck = {
                 viewModel.deleteDeck(selectedDeck.id)
                 selectedDeckId = null
-            }
+            },
+            isMemorised = viewModel::isMemorised,
+            onReviewDone = viewModel::applyReview
         )
         return
     }
@@ -248,15 +248,26 @@ private fun DeckDetailPage(
     onEditCard: (id: String, front: String, back:String) -> Unit,
     onDeleteCard: (id: String) -> Unit,
     onEditDeck: (title: String, author: String) -> Unit,
-    onDeleteDeck: () -> Unit
+    onDeleteDeck: () -> Unit,
+    isMemorised: (String) -> Boolean,
+    onReviewDone: (Map<String, Boolean>) -> Unit
 ) {
     var showCardEditor by rememberSaveable {mutableStateOf(false)}
-    var showMemorise by rememberSaveable {mutableStateOf(false)}
     var editingCardId by rememberSaveable {mutableStateOf<String?>(null)}
     val editingCard = cards.firstOrNull{it.id == editingCardId}
     var deckMenuExpanded by remember { mutableStateOf(false) }
     var showEditDeckDialog by rememberSaveable { mutableStateOf(false) }
     var showDeleteDeckDialog by rememberSaveable { mutableStateOf(false) }
+
+    // memorise
+    var showMemoriseSetup by rememberSaveable {mutableStateOf(false)}
+    var unmemorisedOnly by rememberSaveable {mutableStateOf(false)}
+    var randomOrder by rememberSaveable {mutableStateOf(false)}
+    var swapSides by rememberSaveable {mutableStateOf(false)}
+    var reviewCards by remember {mutableStateOf<List<StudyCard>>(emptyList())}
+
+    val unmemorisedCards = cards.filterNot{isMemorised(it.id)}
+    val eligibleCards = if (unmemorisedOnly) unmemorisedCards else cards
 
     if (showCardEditor) {
         CardEditorPage(
@@ -284,10 +295,15 @@ private fun DeckDetailPage(
         return
     }
 
-    if (showMemorise && cards.isNotEmpty()) {
+    if (reviewCards.isNotEmpty()) {
         CardView(
-            card = cards.first(),
-            onBack = { showMemorise = false }
+            cards = reviewCards,
+            swapSides = swapSides,
+            onBack = { reviewCards = emptyList() },
+            onDone = { results ->
+                onReviewDone(results)
+                reviewCards = emptyList()
+            }
         )
         return
     }
@@ -332,11 +348,13 @@ private fun DeckDetailPage(
         }
         Spacer(Modifier.height(16.dp))
         Button(
-            onClick = { showMemorise = true },
+            onClick = { showMemoriseSetup = true },
             enabled = cards.isNotEmpty()
         ) {
             Text("Memorise")
         }
+
+        Text("Memorised ${cards.size - unmemorisedCards.size} / ${cards.size}")
         Text("Cards ${cards.size}")
 
         LazyColumn(Modifier.fillMaxWidth().weight(1f),
@@ -397,6 +415,72 @@ private fun DeckDetailPage(
                     onDeleteDeck()
                 }) {
                     Text("Delete")
+                }
+            }
+        )
+    }
+
+    if (showMemoriseSetup) {
+        AlertDialog(
+            onDismissRequest = { showMemoriseSetup = false },
+            title = { Text("Memorise") },
+            text = {
+                Column {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        RadioButton(
+                            selected = !unmemorisedOnly,
+                            onClick = { unmemorisedOnly = false }
+                        )
+                        Text("All cards (${cards.size})")
+                    }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        RadioButton(
+                            selected = unmemorisedOnly,
+                            onClick = { unmemorisedOnly = true }
+                        )
+                        Text("Unmemorised cards (${unmemorisedCards.size})")
+                    }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        RadioButton(
+                            selected = !randomOrder,
+                            onClick = { randomOrder = false }
+                        )
+                        Text("Original order")
+                    }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        RadioButton(
+                            selected = randomOrder,
+                            onClick = { randomOrder = true }
+                        )
+                        Text("Random order")
+                    }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Checkbox(
+                            checked = swapSides,
+                            onCheckedChange = { swapSides = it }
+                        )
+                        Text("Swap front and back")
+                    }
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showMemoriseSetup = false }) {
+                    Text("Cancel")
+                }
+            },
+            confirmButton = {
+                Button(
+                    enabled = eligibleCards.isNotEmpty(),
+                    onClick = {
+                        reviewCards = if (randomOrder) {
+                            eligibleCards.shuffled()
+                        } else {
+                            eligibleCards.toList()
+                        }
+                        showMemoriseSetup = false
+                    }
+                ) {
+                    Text("Card view")
                 }
             }
         )
@@ -487,11 +571,15 @@ private fun CardEditorPage(
 
 @Composable
 private fun CardView(
-    card: StudyCard,
-    onBack: () -> Unit
+    cards: List<StudyCard>,
+    swapSides: Boolean,
+    onBack: () -> Unit,
+    onDone: (Map<String, Boolean>) -> Unit
 )
 {
-    var showAnswer by rememberSaveable {mutableStateOf(false)}
+    val decisions = remember { mutableStateListOf<Boolean>() }
+    val currentCard = cards.getOrNull(decisions.size)
+    var showAnswer by remember(currentCard?.id) { mutableStateOf(false) }
 
     BackHandler(onBack = onBack)
 
@@ -503,14 +591,46 @@ private fun CardView(
             Text("Back")
         }
 
-        Text("Tap the card to reveal the answer")
+        Text("${decisions.size} / ${cards.size} reviewed")
 
-        Card(onClick = {showAnswer = !showAnswer},
-            modifier = Modifier.fillMaxWidth()
+        if (currentCard != null) {
+            val prompt = if (swapSides) currentCard.back else currentCard.front
+            val answer = if (swapSides) currentCard.front else currentCard.back
+
+            Card(
+                onClick = { showAnswer = !showAnswer },
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    text = if (showAnswer) answer else prompt,
+                    modifier = Modifier.padding(16.dp)
+                )
+            }
+
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(onClick = { decisions.add(true) }) {
+                    Text("Known")
+                }
+                Button(onClick = { decisions.add(false) }) {
+                    Text("Still learning")
+                }
+            }
+        } else {
+            Text("Known cards: ${decisions.count { it }}")
+            Text("Still learning cards: ${decisions.count { !it }}")
+
+            Button(onClick = {
+                onDone(cards.map { it.id }.zip(decisions).toMap())
+            }) {
+                Text("Done")
+            }
+        }
+
+        TextButton(
+            enabled = decisions.isNotEmpty(),
+            onClick = { decisions.removeAt(decisions.lastIndex) }
         ) {
-            Text(text = if (showAnswer) card.back else card.front,
-                modifier = Modifier.padding(16.dp)
-            )
+            Text("Undo")
         }
     }
 }
