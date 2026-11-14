@@ -19,55 +19,43 @@ import androidx.compose.runtime.remember
 import androidx.compose.foundation.lazy.items
 import java.util.UUID
 import androidx.activity.compose.BackHandler
+import androidx.lifecycle.viewmodel.compose.viewModel
 
 @Composable
 fun FlashcardsPage(modifier: Modifier = Modifier,
+                   viewModel: FlashcardsViewModel,
                    onBack: () -> Unit = {}
 ) {
     var newOptionsExpanded by rememberSaveable {mutableStateOf(false)}
     var moreOptionsExpanded by rememberSaveable {mutableStateOf(false)}
 
-    val decks = remember { mutableStateListOf<FlashcardDeck>() }
+    val decks = viewModel.decks
+    val cards = viewModel.cards
+
     var showAddDeckDialog by rememberSaveable {mutableStateOf(false)}
 
     var selectedDeckId by rememberSaveable {mutableStateOf<String?>(null)}
     val selectedDeck = decks.firstOrNull{it.id == selectedDeckId}
 
-    val cards = remember {mutableStateListOf<StudyCard>()}
-
     if (selectedDeck != null) {
         DeckDetailPage(
             deck = selectedDeck,
-            cards = cards.filter {it.deckId == selectedDeck.id},
-            onBack = {selectedDeckId = null},
+            cards = cards.filter { it.deckId == selectedDeck.id },
+            onBack = { selectedDeckId = null },
             onAddCard = { front, back ->
-                cards.add(
-                    StudyCard(
-                        id = UUID.randomUUID().toString(),
-                        deckId = selectedDeck.id,
-                        front = front,
-                        back = back
-                    )
-                )
+                viewModel.addCard(selectedDeck.id, front, back)
             },
-            onEditCard = {id, front, back ->
-                val index = cards.indexOfFirst { it.id == id }
-                if (index >= 0) {
-                    cards[index] = cards[index].copy(front = front, back = back)
-                }
+            onEditCard = { id, front, back ->
+                viewModel.editCard(id, front, back)
             },
-            onDeleteCard = {id ->
-                cards.removeAll {it.id == id}
+            onDeleteCard = { id ->
+                viewModel.deleteCard(id)
             },
             onEditDeck = { title, author ->
-                val index = decks.indexOfFirst { it.id == selectedDeck.id }
-                if (index >= 0) {
-                    decks[index] = decks[index].copy(title = title, author = author)
-                }
+                viewModel.editDeck(selectedDeck.id, title, author)
             },
             onDeleteDeck = {
-                cards.removeAll { it.deckId == selectedDeck.id }
-                decks.removeAll { it.id == selectedDeck.id }
+                viewModel.deleteDeck(selectedDeck.id)
                 selectedDeckId = null
             }
         )
@@ -172,14 +160,8 @@ fun FlashcardsPage(modifier: Modifier = Modifier,
     if (showAddDeckDialog) {
         AddFlashcardPageDialog(
             onDismiss = {showAddDeckDialog = false},
-            onSave = {title, author ->
-                decks.add(
-                    FlashcardDeck(
-                        id = UUID.randomUUID().toString(),
-                        title = title,
-                        author = author
-                    )
-                )
+            onSave = { title, author ->
+                viewModel.addDeck(title, author)
                 showAddDeckDialog = false
             }
         )
@@ -277,7 +259,11 @@ private fun DeckDetailPage(
 
     if (showCardEditor) {
         CardEditorPage(
-            onBack = {showCardEditor = false},
+            card = editingCard,
+            onBack = {
+                showCardEditor = false
+                editingCardId = null
+            },
             onSave = {front, back ->
                 if (editingCard != null) {
                     onEditCard(editingCard.id, front, back)
@@ -500,6 +486,6 @@ private fun StartTest() {
 @Preview
 @Composable
 private fun MockFlashcardsPagePreview() {
-    MaterialTheme { FlashcardsPage(Modifier) }
+    MaterialTheme { FlashcardsPage(Modifier, FlashcardsViewModel()) }
 }
 
