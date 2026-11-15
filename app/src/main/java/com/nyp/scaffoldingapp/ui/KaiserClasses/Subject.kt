@@ -55,8 +55,13 @@ import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import java.time.DayOfWeek
 import java.time.Duration
+import java.time.temporal.ChronoUnit
+import java.time.temporal.TemporalAdjuster
 import java.util.UUID
+import java.time.temporal.TemporalAdjusters
+
 
 enum class TaskType{
     DEFAULT,
@@ -66,7 +71,7 @@ enum class TaskType{
 enum class RoutineType{
     NONE,
     DAILY,
-    WEEKLy
+    WEEKLY
 }
 
 sealed interface Edit<out T>{
@@ -87,29 +92,57 @@ enum class CompletionProgress{
     DONE
 }
 
+class Routine(
+    var days: MutableList<DayOfWeek> = mutableListOf(),
+    var routineType: RoutineType = RoutineType.NONE,
+    var frequency : Int = 0,
+    val startDate : LocalDate = LocalDate.now()
+){
+    fun OnDay(dateTime : LocalDate): Boolean{
+        if (routineType == RoutineType.WEEKLY) {
+            if (!(dateTime.dayOfWeek in days))
+                return false
+            val monOfRoutineWk = startDate.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+            val monOfDate = dateTime.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
+            val weeksApart : Int = ChronoUnit.WEEKS.between(monOfRoutineWk, monOfDate).toInt()
 
+            if (weeksApart % frequency != 0)
+                return false
+
+            return true
+        }
+        else if (routineType == RoutineType.DAILY){
+            val daysApart : Int = ChronoUnit.DAYS.between(startDate, dateTime).toInt()
+            if (daysApart % frequency == 0 && dateTime.dayOfWeek in days)
+                return true
+        }
+        return false
+
+
+    }
+}
 
 
 class Task(
     var name : String,
     val id: String = UUID.randomUUID().toString(),
     var completionProgress: CompletionProgress = CompletionProgress.NOT_DONE,
-    var routineType: RoutineType = RoutineType.NONE,
+
     var duration: Duration? = null,
     var time: LocalDateTime? = null,
-    var taskType: TaskType
+    var routine : Routine
 ) {
 
     fun Edit(name : Edit<String> = Edit.Keep,
              progress : Edit<CompletionProgress> = Edit.Keep,
-             routine : Edit<RoutineType> = Edit.Keep,
-             time : Edit<LocalDateTime> = Edit.Keep,
-             duration: Edit<Duration> = Edit.Keep) : Task{
+             time : Edit<LocalDateTime?> = Edit.Keep,
+             duration: Edit<Duration?> = Edit.Keep,
+             routine: Edit<Routine> = Edit.Keep) : Task{
         name.ApplyChange(this.name)
         progress.ApplyChange(this.completionProgress)
-        routine.ApplyChange(this.routineType)
         time.ApplyChange(this.time)
         duration.ApplyChange(this.duration)
+        routine.ApplyChange(this.routine)
         return this
     }
 
@@ -122,15 +155,11 @@ class Task(
 data class Subject(
     var name : String = "Default",
     var color: Color = Color.White,
-    val tasks : List<ToDoTask> = mutableListOf<ToDoTask>(),
+    val tasks : List<Task> = mutableListOf<Task>(),
     val id: String = UUID.randomUUID().toString()
 )
 
-data class ToDoTask(
-    val task : Task,
-    var finished : Boolean,
-    val id: String = UUID.randomUUID().toString()
-)
+
 
 data class ToDoSubjects(
     val subjects : List<Subject> = listOf<Subject>()
@@ -141,15 +170,17 @@ fun DateTimeFormat(dateTime: LocalDateTime) : String{
     return dateTime.format(formatter)
 }
 
-fun TimeFormat(time: LocalTime) : String{
-    val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH-mm", Locale.getDefault())
+fun TimeFormat(time: LocalDateTime, format: String = "yyyy-MM-dd HH-mm") : String{
+    val formatter = DateTimeFormatter.ofPattern(format, Locale.getDefault())
     return time.format(formatter)
 }
+
+
 
 class SubjectViewModel : ViewModel(){
 
     data class TaskSubj(
-        var toDoTask: ToDoTask,
+        var Task: Task,
         var subject: Subject
     )
 
@@ -163,7 +194,7 @@ class SubjectViewModel : ViewModel(){
         _subjects.update { currentState -> currentState.copy((currentState.subjects + newSubj)) }
     }
 
-    fun GetTasks(requirement: (ToDoTask)-> Boolean = {true}): MutableList<TaskSubj>{
+    fun GetTasks(requirement: (Task)-> Boolean = {true}): MutableList<TaskSubj>{
         val subjects = _subjects.value.subjects
         val returnTasks: MutableList<TaskSubj> = mutableListOf()
         for (i in 1..subjects.size){
@@ -191,7 +222,7 @@ class SubjectViewModel : ViewModel(){
     fun DeleteTask(task: Task){
         _subjects.update{ currentState ->
             currentState.copy(subjects = currentState.subjects.map{
-                subject -> subject.copy(tasks = subject.tasks.filterNot{it.task.id == task.id})
+                subject -> subject.copy(tasks = subject.tasks.filterNot{it.id == task.id})
             })
 
             //ToDoSubjects(subjects = updatedSubjects)
@@ -213,15 +244,15 @@ class SubjectViewModel : ViewModel(){
         }
     }
 
-    fun SetTaskFinished(task: ToDoTask, finished: Boolean){
+    fun SetTaskFinished(task: Task, finished: CompletionProgress){
         _subjects.update { currentState ->
             val updatedSubjects = currentState.subjects.map { subject ->
-                val updatedTasks = subject.tasks.map { toDoTask ->
-                    if (toDoTask.task.id == task.task.id) {
-                        toDoTask.copy(finished = finished)
-                        //toDoTask
+                val updatedTasks = subject.tasks.map { thisTask ->
+                    if (thisTask.id == task.id) {
+                        thisTask.Edit(progress = Edit.Change(finished))
+                        //Task
                     } else {
-                        toDoTask
+                        thisTask
                     }
                 }
                 subject.copy(tasks = updatedTasks)
@@ -229,15 +260,15 @@ class SubjectViewModel : ViewModel(){
             ToDoSubjects(subjects = updatedSubjects)
         }
     }
-    fun SetTaskFinished(requirement: (Subject)->Boolean, finished: Boolean){
+    fun SetTaskFinished(requirement: (Task)->Boolean, finished: CompletionProgress){
         _subjects.update { currentState ->
             val updatedSubjects = currentState.subjects.map { subject ->
-                val updatedTasks = subject.tasks.map { toDoTask ->
-                    if (requirement(subject)) {
-                        toDoTask.copy(finished = finished)
-                        //toDoTask
+                val updatedTasks = subject.tasks.map { thisTask ->
+                    if (requirement(thisTask)) {
+                        thisTask.Edit(progress = Edit.Change(finished))
+                        //Task
                     } else {
-                        toDoTask
+                        thisTask
                     }
                 }
                 subject.copy(tasks = updatedTasks)
@@ -248,17 +279,17 @@ class SubjectViewModel : ViewModel(){
 
     fun EditTask(task: Task, name : Edit<String> = Edit.Keep,
                  progress : Edit<CompletionProgress> = Edit.Keep,
-                 routine : Edit<RoutineType> = Edit.Keep,
-                 time : Edit<LocalDateTime> = Edit.Keep,
-                 duration: Edit<Duration> = Edit.Keep){
+                 time : Edit<LocalDateTime?> = Edit.Keep,
+                 duration: Edit<Duration?> = Edit.Keep,
+                 routine: Edit<Routine> = Edit.Keep){
         _subjects.update { currentState ->
             val updatedSubjects = currentState.subjects.map{
                     thisSubject ->
                 val updatedTasks = thisSubject.tasks.map{ thisTask->
-                    if (thisTask.task.id == task.id){
-                        thisTask.copy(
-                            task = thisTask.task.Edit(name = name, time = time, progress = progress, routine = routine, duration = duration)
-                        )
+                    if (thisTask.id == task.id){
+
+                        thisTask.Edit(name = name, time = time, progress = progress, duration = duration)
+
                     }
                     else
                         thisTask
@@ -286,15 +317,22 @@ class SubjectViewModel : ViewModel(){
         }
     }
 
-    fun AddTask(name : String, subject : Subject,time: LocalDateTime? = null, duration: Duration? = null, taskType: TaskType = TaskType.DEFAULT) {
-        val newTask = Task(name = name, time = time, duration = duration, taskType = taskType, completionProgress = CompletionProgress.NOT_DONE)
-        val newToDoTask = ToDoTask(newTask, false)
+    fun AddTask(name : String, subject : Subject,time: LocalDateTime? = null, duration: Duration? = null, routine: Routine = Routine()) {
+        val newTask = Task(name = name, time = time, duration = duration, routine = routine, completionProgress = CompletionProgress.NOT_DONE)
 
 
         _subjects.update { currentState -> ToDoSubjects((currentState.subjects.map { thisSubject -> if (thisSubject.id == subject.id) {
-            thisSubject.copy(tasks = thisSubject.tasks + newToDoTask)
+            thisSubject.copy(tasks = thisSubject.tasks + newTask)
         } else thisSubject }) ) }
 
+
+    }
+    fun AddTask(subject: Subject, task: Task){
+
+
+        _subjects.update { currentState -> ToDoSubjects((currentState.subjects.map { thisSubject -> if (thisSubject.id == subject.id) {
+            thisSubject.copy(tasks = thisSubject.tasks + task)
+        } else thisSubject }) ) }
 
     }
 }

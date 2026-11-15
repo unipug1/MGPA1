@@ -71,7 +71,7 @@ fun AppScaffold() {
         Box(Modifier.padding(padding).fillMaxSize()) {
             when (selectedTab) {
                 Tab.PAGE1 -> ToDoPage(subjViewModel ,Modifier)
-                Tab.PAGE2 -> CalendarPage(subjViewModel, modifier = Modifier)
+                Tab.PAGE2 -> Page2()
                 Tab.PAGE3 -> Page3()
                 Tab.PAGE4 -> Page4()
             }

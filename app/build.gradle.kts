@@ -6,11 +6,7 @@ plugins {
 android {
 
     namespace = "com.nyp.scaffoldingapp"
-    compileSdk {
-        version = release(36) {
-            minorApiLevel = 1
-        }
-    }
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "com.nyp.scaffoldingapp"
@@ -33,12 +29,7 @@ android {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
 
-
         isCoreLibraryDesugaringEnabled = true
-
-
-        sourceCompatibility = JavaVersion.VERSION_1_8
-        targetCompatibility = JavaVersion.VERSION_1_8
     }
 
 
