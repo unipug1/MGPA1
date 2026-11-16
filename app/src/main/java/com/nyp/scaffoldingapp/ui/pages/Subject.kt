@@ -4,7 +4,8 @@ data class Subject(
     val id: String,
     val name: String,
     val timeSpentSeconds: Long,
-    val colorHex: String
+    val colorHex: String,
+    val isArchived: Boolean = false
 )
 
 sealed interface HomeUIState {
