@@ -28,9 +28,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.window.DialogProperties
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.items
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.border
 import androidx.compose.foundation.rememberScrollState
@@ -40,6 +37,11 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.runtime.key
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -64,8 +66,13 @@ private fun restText(seconds: Long): String = when {
     else -> "${seconds / 3_600}h ${seconds % 3_600 / 60}m"
 }
 
-private fun subjectColor(hex: String): Color =
-    runCatching { Color(hex.toColorInt()) }.getOrDefault(Color.Gray)
+private fun subjectColor(hex: String): Color {
+    return try {
+        Color(hex.toColorInt())
+    } catch (_: IllegalArgumentException) {
+        Color.Gray
+    }
+}
 
 @Composable
 fun HomePage(
@@ -101,12 +108,22 @@ fun HomePage(
                 val activeSubject = state.activeSubject
 
                 when {
-                    activeSubject != null -> StudyScreen(
-                        state = state,
-                        subject = activeSubject,
-                        onToggleTimer = viewModel::toggleTimer,
-                        onFinish = viewModel::finishTimer
-                    )
+                    activeSubject != null -> {
+                        StudyScreen(
+                            state = state,
+                            subject = activeSubject,
+                            onPause = viewModel::stopForBreak,
+                            onOpenBooks = onOpenBooks
+                        )
+
+                        state.pendingBreakSeconds?.let { seconds ->
+                            BreakLogDialog(
+                                seconds = seconds,
+                                onTagSelected = { tag -> viewModel.dismissBreakLog(tag) },
+                                onNoLog = { viewModel.dismissBreakLog() }
+                            )
+                        }
+                    }
 
                     showEditor -> {
                         BackHandler { showEditor = false }
@@ -135,7 +152,7 @@ fun HomePage(
                 }
 
                 if (showAdd) {
-                    AddSubjectDialog(
+                    SubjectEditorDialog (
                         onDismiss = { showAdd = false },
                         onSave = { name, color ->
                             viewModel.addSubject(name, color)
@@ -145,7 +162,7 @@ fun HomePage(
                 }
 
                 state.subjects.firstOrNull { it.id == editId }?.let { subject ->
-                    AddSubjectDialog(
+                    SubjectEditorDialog (
                         initialSubject = subject,
                         onDismiss = { editId = null },
                         onSave = { name, color ->
@@ -190,8 +207,7 @@ private fun TimerHome(
             Box(Modifier.fillMaxWidth().height(56.dp)) {
                 DayBadge(Modifier.align(Alignment.CenterStart))
                 Text(dateText, Modifier.align(Alignment.Center), fontSize = 16.sp)
-                // more icon
-                Text("▦", Modifier.align(Alignment.CenterEnd), fontSize = 24.sp)
+                MoreFeaturesMenu(onOpenBooks, Modifier.align(Alignment.CenterEnd))
             }
 
             Spacer(Modifier.height(22.dp))
@@ -210,7 +226,7 @@ private fun TimerHome(
 
                 Column(
                     modifier = if (canOpenBooks) {
-                        tabModifier.clickable { onOpenBooks?.invoke() }
+                        tabModifier.clickable { onOpenBooks.invoke() }
                     } else {
                         tabModifier
                     },
@@ -244,8 +260,16 @@ private fun TimerHome(
             }
 
             item {
-                TextButton(onClick = onOpenEditor, modifier = Modifier.padding(start = 12.dp)) {
-                    Text("Edit subject", color = YptInk)
+                FilledTonalButton(
+                    onClick = onOpenEditor,
+                    modifier = Modifier.padding(start = 16.dp, top = 8.dp),
+                    shape = RoundedCornerShape(10.dp),
+                    colors = ButtonDefaults.filledTonalButtonColors(
+                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                        contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                ) {
+                    Text("Edit subject", style = MaterialTheme.typography.labelLarge)
                 }
             }
         }
@@ -293,7 +317,7 @@ private fun EditSubjectsScreen(
                 Surface(shape = RoundedCornerShape(10.dp), color = Color.White, contentColor = YptInk) {
                     Column {
                         studying.forEach { subject ->
-                            androidx.compose.runtime.key(subject.id) {
+                            key(subject.id) {
                                 SubjectRow(
                                     subject = subject,
                                     onEdit = { onEdit(subject) },
@@ -307,7 +331,7 @@ private fun EditSubjectsScreen(
                             onClick = onAdd,
                             modifier = Modifier.fillMaxWidth()
                         ) {
-                            Text("＋  Add subject", color = YptMuted, modifier = Modifier.weight(1f))
+                            Text("+ Add subject", color = YptMuted, modifier = Modifier.weight(1f))
                         }
                     }
                 }
@@ -322,7 +346,7 @@ private fun EditSubjectsScreen(
                     Surface(shape = RoundedCornerShape(10.dp), color = Color.White, contentColor = YptInk) {
                         Column {
                             archived.forEach { subject ->
-                                androidx.compose.runtime.key(subject.id) {
+                                key(subject.id) {
                                     SubjectRow(
                                         subject = subject,
                                         onEdit = { onEdit(subject) },
@@ -390,17 +414,14 @@ private fun SubjectRow(
             DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
                 DropdownMenuItem(
                     text = { Text("Edit") },
-                    leadingIcon = { Text("✎") },
                     onClick = { menuOpen = false; onEdit() }
                 )
                 DropdownMenuItem(
                     text = { Text("Delete") },
-                    leadingIcon = { Text("×") },
                     onClick = { menuOpen = false; onDelete() }
                 )
                 DropdownMenuItem(
                     text = { Text(if (subject.isArchived) "Restore" else "Archive") },
-                    leadingIcon = { Text("▣") },
                     onClick = { menuOpen = false; onArchive() }
                 )
             }
@@ -424,234 +445,171 @@ private fun PlaceholderButton(
 }
 
 @Composable
-fun AddSubjectDialog(
-    initialSubject: Subject? = null, // null for add, non-null for edit
+private fun SubjectEditorDialog(
+    initialSubject: Subject? = null,
     onDismiss: () -> Unit,
     onSave: (String, String) -> Unit
 ) {
-    var subjectName by rememberSaveable { mutableStateOf(initialSubject?.name ?: "") }
-    val subjectNameFocusRequester = remember { FocusRequester() }
-    var subjectColor by rememberSaveable { mutableStateOf(initialSubject?.colorHex ?: "#9E9E9E") }
-    var showSelectColorDialogue by rememberSaveable { mutableStateOf(false) }
+    var name by rememberSaveable(initialSubject?.id) {
+        mutableStateOf(initialSubject?.name.orEmpty())
+    }
+    var colorHex by rememberSaveable(initialSubject?.id) {
+        mutableStateOf(initialSubject?.colorHex ?: "#9E9E9E")
+    }
+    var showColors by rememberSaveable { mutableStateOf(false) }
+    val save = { onSave(name.trim(), colorHex) }
 
-    Dialog(onDismissRequest = onDismiss,
-        properties = DialogProperties(usePlatformDefaultWidth = false)) {
-        Card(modifier = Modifier
-            .fillMaxWidth()
-            .fillMaxHeight(0.95f),
-            shape = RoundedCornerShape(20.dp)
-        ) {
-            Column(modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp)
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        val focusRequester = remember { FocusRequester() }
+        val focusManager = LocalFocusManager.current
+
+        Box(Modifier.fillMaxSize().imePadding().padding(top = 24.dp)) {
+            Surface(
+                modifier = Modifier.align(Alignment.BottomCenter).fillMaxSize(),
+                shape = RoundedCornerShape(topStart = 32.dp, topEnd = 32.dp),
+                color = MaterialTheme.colorScheme.surfaceVariant
             ) {
-                Row(modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically) {
-                    Button(onClick = onDismiss) {
-                        Text("✗")
-                    }
-                    Spacer(Modifier.weight(1f))
-                    Text(
-                        text = if (initialSubject == null) "Subject name" else "Edit",
-                        style = MaterialTheme.typography.titleMedium
-                    )
-                    Spacer(Modifier.weight(1f))
-                    Button(onClick = { onSave(subjectName.trim(), subjectColor) },
-                        enabled = subjectName.isNotBlank()
-                    ) {
-                        Text("✓")
-                    }
-                }
-
-                // subject name
-                Spacer(Modifier.height(30.dp))
-                Card(modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp)) {
-                    OutlinedTextField(
-                        value = subjectName,
-                        onValueChange = {subjectName = it},
-                        modifier = Modifier.fillMaxWidth()
-                            .focusRequester(subjectNameFocusRequester),
-                        placeholder = {Text("e.g. math, english, science, geography...")}
-                    )
-                    LaunchedEffect(Unit) {
-                        subjectNameFocusRequester.requestFocus()
-                    }
-                }
-
-                // subject color
-                Spacer(Modifier.padding(30.dp))
-                Card(modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp)) {
-                    Row(modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween) {
-                        Text("Select Color")
-
-                        val parsedColor = try {
-                            Color(subjectColor.toColorInt())
-                        } catch (e:Exception) {
-                            Color.Gray
+                Column(
+                    Modifier.verticalScroll(rememberScrollState()).padding(18.dp)
+                ) {
+                    Box(Modifier.fillMaxWidth().height(48.dp)) {
+                        FilledIconButton(
+                            onClick = onDismiss,
+                            modifier = Modifier.align(Alignment.CenterStart)
+                                .semantics { contentDescription = "Close subject editor" },
+                            colors = IconButtonDefaults.filledIconButtonColors(
+                                containerColor = MaterialTheme.colorScheme.surface,
+                                contentColor = MaterialTheme.colorScheme.onSurface
+                            )
+                        ) {
+                            Text("×", style = MaterialTheme.typography.titleLarge)
                         }
-                        // color wheel
-                        Box(modifier = Modifier
-                            .size(24.dp)
-                            .background(color = parsedColor, shape = CircleShape)
-                            .clickable{ showSelectColorDialogue = true}
+
+                        Text(
+                            if (initialSubject == null) "Subject name" else "Edit subject",
+                            Modifier.align(Alignment.Center),
+                            style = MaterialTheme.typography.titleMedium
                         )
+
+                        FilledIconButton(
+                            onClick = save,
+                            enabled = name.isNotBlank(),
+                            modifier = Modifier.align(Alignment.CenterEnd)
+                                .semantics { contentDescription = "Save subject" }
+                        ) {
+                            Text("✓", style = MaterialTheme.typography.titleLarge)
+                        }
+                    }
+
+                    Spacer(Modifier.height(24.dp))
+
+                    TextField(
+                        value = name,
+                        onValueChange = { name = it },
+                        modifier = Modifier.fillMaxWidth().focusRequester(focusRequester)
+                            .semantics { contentDescription = "Subject name" },
+                        singleLine = true,
+                        textStyle = MaterialTheme.typography.bodyLarge,
+                        placeholder = { Text("e.g. math, English, science, history…") },
+                        shape = RoundedCornerShape(12.dp),
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                        keyboardActions = KeyboardActions(
+                            onDone = { if (name.isNotBlank()) save() }
+                        ),
+                        colors = TextFieldDefaults.colors(
+                            focusedContainerColor = MaterialTheme.colorScheme.surface,
+                            unfocusedContainerColor = MaterialTheme.colorScheme.surface,
+                            focusedIndicatorColor = Color.Transparent,
+                            unfocusedIndicatorColor = Color.Transparent
+                        )
+                    )
+
+                    Spacer(Modifier.height(24.dp))
+
+                    Surface(
+                        onClick = {
+                            focusManager.clearFocus()
+                            showColors = true
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        color = MaterialTheme.colorScheme.surface
+                    ) {
+                        Row(
+                            Modifier.heightIn(min = 52.dp).padding(horizontal = 16.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween
+                        ) {
+                            Text("Subject color", style = MaterialTheme.typography.bodyLarge)
+                            Box(Modifier.size(36.dp).background(subjectColor(colorHex), CircleShape))
+                        }
                     }
                 }
+            }
+        }
+
+        LaunchedEffect(Unit) {
+            if (initialSubject == null && !showColors) {
+                focusRequester.requestFocus()
             }
         }
     }
 
-    // add more colors later
-    val availableColors = listOf(
-        "#EA1E63", // red pink
-        "#FD9800", // light orange
-        "#FD5723", // orange
-        "#FFEB3C", // pale yellow
-        "#7A574D", // brown
-        "#9E9E9E" // gray
-    )
-
-    if (showSelectColorDialogue) {
-        var tempSelectedColor by rememberSaveable {mutableStateOf(subjectColor)}
-
-        Dialog(onDismissRequest = { showSelectColorDialogue = false }) {
-            Card(modifier = Modifier
-                .fillMaxWidth()
-                .padding(50.dp)
-            ) {
-                Column(modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp)
-                ) {
-                    Spacer(Modifier.height(16.dp))
-                    Text("Select color", style = MaterialTheme.typography.headlineSmall)
-
-                    // color selection
-                    LazyVerticalGrid(
-                        columns = GridCells.Fixed(5),
-                        Modifier
-                            .fillMaxWidth()
-                            .height(180.dp),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        items(availableColors) { colorHex ->
-                            val colorInt = try {
-                                Color(colorHex.toColorInt())
-                            } catch (e: Exception) {
-                                Color.Gray
-                            }
-
-                            Box(Modifier
-                                .size(40.dp)
-                                .background(colorInt, shape = CircleShape)
-                                .clickable { tempSelectedColor = colorHex},
-                                contentAlignment = Alignment.Center
-                            ) {
-                                if (colorHex == tempSelectedColor) {
-                                    Text("✓", color = Color.Black)
-                                }
-                            }
-                        }
-                    }
-
-                    // buttons
-                    Row(Modifier.fillMaxWidth()){
-                        // 1: cancel
-                        Button(onClick = {showSelectColorDialogue = false},
-                            shape = RoundedCornerShape(10.dp),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                                contentColor = MaterialTheme.colorScheme.onSurfaceVariant // ensures text is readable
-                            )) {
-                            Text("Cancel")
-                        }
-                        Spacer(Modifier.weight(1f))
-                        // 2: ok
-                        Button(onClick = {subjectColor = tempSelectedColor
-                            showSelectColorDialogue = false},
-                            shape = RoundedCornerShape(10.dp),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                                contentColor = MaterialTheme.colorScheme.onSurfaceVariant // ensures text is readable
-                            )) {
-                            Text("OK")
-                        }
-                    }
-                }
+    if (showColors) {
+        SubjectColorDialog(
+            initialColor = colorHex,
+            onDismiss = { showColors = false },
+            onConfirm = {
+                colorHex = it
+                showColors = false
             }
-        }
+        )
     }
 }
 
 @Composable
-fun DeleteSubjectDialog(
+private fun DeleteSubjectDialog(
     subject: Subject,
     onDismiss: () -> Unit,
     onConfirm: () -> Unit
 ) {
-    Dialog(
-        onDismissRequest = onDismiss
-    ) {
-        Card(Modifier
-            .fillMaxWidth()
-            .padding(16.dp)) {
-            Column(Modifier
-                .fillMaxWidth()
-            ) {
-                // title
-                Text("Delete subject", style = MaterialTheme.typography.headlineMedium)
-
-                // content
-                Text("Are you sure you want to delete '${subject.name}'? All To-Dos in this subject will be deleted.")
-                Spacer(Modifier.height(10.dp))
-                Text("Your study time logs won't be deleted.")
-
-                // buttons
-                Row(Modifier.fillMaxWidth()) {
-                    // 1: cancel
-                    Button(onClick = { onDismiss() },
-                        shape = RoundedCornerShape(10.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                            contentColor = MaterialTheme.colorScheme.onSurfaceVariant // ensures text is readable
-                        )) {
-                        Text("Cancel")
-                    }
-                    Spacer(Modifier.weight(1f))
-                    // 2: ok
-                    Button(onClick = { onConfirm() },
-                        shape = RoundedCornerShape(10.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                            contentColor = MaterialTheme.colorScheme.onSurfaceVariant // ensures text is readable
-                        )) {
-                        Text("OK")
-                    }
-                }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        shape = RoundedCornerShape(28.dp),
+        containerColor = MaterialTheme.colorScheme.surface,
+        title = {
+            Text("Delete subject", style = MaterialTheme.typography.titleLarge)
+        },
+        text = {
+            Text(
+                "Are you sure you want to delete '${subject.name}'?",
+                style = MaterialTheme.typography.bodyMedium
+            )
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel", color = MaterialTheme.colorScheme.onSurface)
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onConfirm) {
+                Text("OK", color = MaterialTheme.colorScheme.onSurface)
             }
         }
-    }
+    )
 }
 
 @Composable
 private fun StudyScreen(
     state: HomeUIState.Success,
     subject: Subject,
-    onToggleTimer: () -> Unit,
-    onFinish: () -> Unit
+    onPause: () -> Unit,
+    onOpenBooks: (() -> Unit)?
 ) {
     var showGroupView by rememberSaveable(subject.id) { mutableStateOf(true) }
-    var showMenu by remember { mutableStateOf(false) }
-    var showFinishDialog by rememberSaveable { mutableStateOf(false) }
 
     val sessionTime = clockText(state.currentFocusTime)
     val subjectTime = clockText(subject.timeSpentSeconds + state.currentFocusTime)
@@ -659,7 +617,7 @@ private fun StudyScreen(
         state.subjects.sumOf { it.timeSpentSeconds } + state.currentFocusTime
     )
 
-    BackHandler { showFinishDialog = true }
+    BackHandler (onBack = onPause)
 
     Column(Modifier.fillMaxSize()) {
         Row(
@@ -679,18 +637,7 @@ private fun StudyScreen(
             }
 
             PlaceholderButton("⇄", "Switch study view", { showGroupView = !showGroupView })
-            Box {
-                PlaceholderButton("▦", "Study options", { showMenu = true })
-                DropdownMenu(expanded = showMenu, onDismissRequest = { showMenu = false }) {
-                    DropdownMenuItem(
-                        text = { Text("Finish session") },
-                        onClick = {
-                            showMenu = false
-                            showFinishDialog = true
-                        }
-                    )
-                }
-            }
+            MoreFeaturesMenu(onOpenBooks)
         }
 
         if (showGroupView) {
@@ -698,7 +645,7 @@ private fun StudyScreen(
                 modifier = Modifier.weight(1f),
                 sessionTime = sessionTime,
                 running = state.isTimerRunning,
-                onToggleTimer = onToggleTimer
+                onToggleTimer = onPause
             )
         } else {
             SoloStudyContent(
@@ -708,26 +655,9 @@ private fun StudyScreen(
                 subjectTime = subjectTime,
                 todayTime = todayTime,
                 running = state.isTimerRunning,
-                onToggleTimer = onToggleTimer
+                onToggleTimer = onPause
             )
         }
-    }
-
-    if (showFinishDialog) {
-        AlertDialog(
-            onDismissRequest = { showFinishDialog = false },
-            title = { Text("Finish session?") },
-            text = { Text("Your focus time will be added to ${subject.name}.") },
-            confirmButton = {
-                TextButton(onClick = {
-                    showFinishDialog = false
-                    onFinish()
-                }) { Text("Finish") }
-            },
-            dismissButton = {
-                TextButton(onClick = { showFinishDialog = false }) { Text("Cancel") }
-            }
-        )
     }
 }
 
@@ -881,7 +811,7 @@ private fun PauseButton(
 }
 
 @Composable
-private fun DeskPlaceholder(modifier: Modifier = Modifier.size(44.dp)) {
+private fun DeskPlaceholder(modifier: Modifier = Modifier) {
     Box(modifier, contentAlignment = Alignment.Center) {
         Text("▧", color = Color(0xFF999999), fontSize = 29.sp)
     }
@@ -900,6 +830,189 @@ private fun AllowedAppsPlaceholder(modifier: Modifier = Modifier) {
         )
     ) {
         Text("Allowed Apps", Modifier.padding(horizontal = 18.dp, vertical = 9.dp))
+    }
+}
+
+@Composable
+private fun BreakLogDialog(
+    seconds: Long,
+    onTagSelected: (String) -> Unit,
+    onNoLog: () -> Unit
+) {
+    val duration = "${seconds / 3_600}h ${seconds % 3_600 / 60}m ${seconds % 60}s"
+
+    Dialog(onDismissRequest = onNoLog) {
+        Surface(
+            shape = RoundedCornerShape(28.dp),
+            color = MaterialTheme.colorScheme.surface
+        ) {
+            Column(
+                Modifier.fillMaxWidth().padding(20.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    "Break log $duration",
+                    style = MaterialTheme.typography.titleLarge
+                )
+
+                listOf(
+                    listOf("meals", "bathroom"),
+                    listOf("rest", "other")
+                ).forEach { tags ->
+                    Row(Modifier.fillMaxWidth()) {
+                        tags.forEach { tag ->
+                            TextButton(
+                                onClick = { onTagSelected(tag) },
+                                modifier = Modifier.weight(1f)
+                            ) {
+                                Text("#$tag", style = MaterialTheme.typography.bodyLarge)
+                            }
+                        }
+                    }
+                }
+
+                Spacer(Modifier.height(48.dp))
+
+                Row(
+                    Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    TextButton(onClick = {}, enabled = false) { Text("Edit tags") }
+                    TextButton(onClick = onNoLog) { Text("No log") }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MoreFeaturesMenu(
+    onOpenBooks: (() -> Unit)?,
+    modifier: Modifier = Modifier
+) {
+    var expanded by remember { mutableStateOf(false) }
+
+    Box(modifier) {
+        PlaceholderButton("▦", "More features", { expanded = true })
+
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false }
+        ) {
+            DropdownMenuItem(
+                text = { Text("Books") },
+                enabled = onOpenBooks != null,
+                onClick = {
+                    expanded = false
+                    onOpenBooks?.invoke()
+                }
+            )
+            DropdownMenuItem(
+                text = { Text("Stats") },
+                enabled = false,
+                onClick = {}
+            )
+            DropdownMenuItem(
+                text = { Text("Rankings") },
+                enabled = false,
+                onClick = {}
+            )
+        }
+    }
+}
+
+private val subjectPalette = listOf(
+    "#F44336", "#E91E63", "#9C27B0", "#673AB7", "#3F51B5",
+    "#2196F3", "#03A9F4", "#00BCD4", "#009688", "#4CAF50",
+    "#8BC34A", "#CDDC39", "#FFEB3B", "#FFC107", "#FF9800",
+    "#FF5722", "#795548", "#9E9E9E", "#607D8B", "#455D7C",
+    "#716586", "#5A7C71", "#8A6487", "#75635A", "#73806F",
+    "#5D7279", "#AC754D", "#424E78", "#486064"
+)
+
+@Composable
+private fun SubjectColorDialog(
+    initialColor: String,
+    onDismiss: () -> Unit,
+    onConfirm: (String) -> Unit
+) {
+    var selectedColor by rememberSaveable(initialColor) { mutableStateOf(initialColor) }
+
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            shape = RoundedCornerShape(30.dp),
+            color = MaterialTheme.colorScheme.surfaceVariant
+        ) {
+            Column(
+                Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(14.dp)
+            ) {
+                Text(
+                    "Select color",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(Modifier.height(12.dp))
+
+                subjectPalette.withIndex().toList().chunked(5).forEach { row ->
+                    Row(
+                        Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        row.forEach { (index, hex) ->
+                            val locked = index >= 19
+                            val selected = hex.equals(selectedColor, ignoreCase = true)
+
+                            Surface(
+                                onClick = { selectedColor = hex },
+                                enabled = !locked,
+                                modifier = Modifier.weight(1f).aspectRatio(1f)
+                                    .semantics {
+                                        contentDescription = when {
+                                            locked -> "Locked color $hex"
+                                            selected -> "Selected color $hex"
+                                            else -> "Color $hex"
+                                        }
+                                    },
+                                shape = CircleShape,
+                                color = subjectColor(hex),
+                                shadowElevation = if (locked) 0.dp else 3.dp
+                            ) {
+                                Box(contentAlignment = Alignment.Center) {
+                                    when {
+                                        locked -> Text("🔒", style = MaterialTheme.typography.bodyMedium)
+                                        selected -> Text(
+                                            "✓",
+                                            color = Color.Black,
+                                            style = MaterialTheme.typography.titleLarge
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
+                        repeat(5 - row.size) { Spacer(Modifier.weight(1f)) }
+                    }
+                }
+
+                Spacer(Modifier.height(16.dp))
+
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FilledTonalButton(onClick = onDismiss, modifier = Modifier.weight(1f)) {
+                        Text("Cancel")
+                    }
+                    Button(
+                        onClick = { onConfirm(selectedColor) },
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.surface,
+                            contentColor = MaterialTheme.colorScheme.onSurface
+                        )
+                    ) {
+                        Text("OK")
+                    }
+                }
+            }
+        }
     }
 }
 
