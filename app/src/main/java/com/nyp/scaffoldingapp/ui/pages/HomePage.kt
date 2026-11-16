@@ -63,7 +63,7 @@ private fun clockText(seconds: Long): String =
 private fun restText(seconds: Long): String = when {
     seconds < 60 -> "${seconds}s"
     seconds < 3_600 -> "${seconds / 60}m ${seconds % 60}s"
-    else -> "${seconds / 3_600}h ${seconds % 3_600 / 60}m"
+    else -> "${seconds / 3_600}h ${seconds % 3_600 / 60}m ${seconds % 60}s"
 }
 
 private fun subjectColor(hex: String): Color {
@@ -197,8 +197,10 @@ private fun TimerHome(
     onDelete: (Subject) -> Unit,
     onArchive: (Subject) -> Unit
 ) {
-    val today = state.subjects.sumOf{it.timeSpentSeconds}
+    val today = state.subjects.sumOf { it.timeSpentSeconds } +
+            state.deletedSubjectStudySeconds
     val dateText = SimpleDateFormat("EEE, M/d", Locale.getDefault()).format(Date())
+
     Column(Modifier.fillMaxSize()) {
         Column(
             Modifier.fillMaxWidth().background(YptPanel).padding(horizontal = 16.dp),
@@ -215,7 +217,11 @@ private fun TimerHome(
                 Text(clockText(today), fontSize = 44.sp, fontWeight = FontWeight.Bold)
             }
             Spacer(Modifier.height(12.dp))
-            Text(restText(state.currentRestTime), color = YptMuted)
+            Text(
+                text = restText(state.currentRestTime + state.currentBreakSeconds),
+                color = YptMuted,
+                style = MaterialTheme.typography.bodyMedium
+            )
             Spacer(Modifier.height(18.dp))
         }
 
@@ -584,10 +590,16 @@ private fun DeleteSubjectDialog(
             Text("Delete subject", style = MaterialTheme.typography.titleLarge)
         },
         text = {
-            Text(
-                "Are you sure you want to delete '${subject.name}'?",
-                style = MaterialTheme.typography.bodyMedium
-            )
+            Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                Text(
+                    text = "Are you sure you want to delete '${subject.name}'?",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                Text(
+                    text = "Your study time logs won’t be deleted.",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
@@ -614,7 +626,9 @@ private fun StudyScreen(
     val sessionTime = clockText(state.currentFocusTime)
     val subjectTime = clockText(subject.timeSpentSeconds + state.currentFocusTime)
     val todayTime = clockText(
-        state.subjects.sumOf { it.timeSpentSeconds } + state.currentFocusTime
+        state.subjects.sumOf { it.timeSpentSeconds } +
+                state.deletedSubjectStudySeconds +
+                state.currentFocusTime
     )
 
     BackHandler (onBack = onPause)
@@ -706,6 +720,7 @@ private fun GroupStudyContent(
                     Modifier.fillMaxWidth().verticalScroll(rememberScrollState())
                         .padding(14.dp).padding(bottom = 48.dp)
                 ) {
+                    // connect with group data later
                     Text("Study Squad", fontWeight = FontWeight.SemiBold)
                     Spacer(Modifier.height(12.dp))
                     Text(if (running) "1 member studying" else "0 members studying")
@@ -925,9 +940,7 @@ private val subjectPalette = listOf(
     "#F44336", "#E91E63", "#9C27B0", "#673AB7", "#3F51B5",
     "#2196F3", "#03A9F4", "#00BCD4", "#009688", "#4CAF50",
     "#8BC34A", "#CDDC39", "#FFEB3B", "#FFC107", "#FF9800",
-    "#FF5722", "#795548", "#9E9E9E", "#607D8B", "#455D7C",
-    "#716586", "#5A7C71", "#8A6487", "#75635A", "#73806F",
-    "#5D7279", "#AC754D", "#424E78", "#486064"
+    "#FF5722", "#795548", "#9E9E9E", "#607D8B"
 )
 
 @Composable
@@ -953,34 +966,28 @@ private fun SubjectColorDialog(
                 )
                 Spacer(Modifier.height(12.dp))
 
-                subjectPalette.withIndex().toList().chunked(5).forEach { row ->
+                subjectPalette.chunked(5).forEach { row ->
                     Row(
                         Modifier.fillMaxWidth().padding(vertical = 4.dp),
                         horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
-                        row.forEach { (index, hex) ->
-                            val locked = index >= 19
+                        row.forEach { hex ->
                             val selected = hex.equals(selectedColor, ignoreCase = true)
 
                             Surface(
                                 onClick = { selectedColor = hex },
-                                enabled = !locked,
                                 modifier = Modifier.weight(1f).aspectRatio(1f)
                                     .semantics {
-                                        contentDescription = when {
-                                            locked -> "Locked color $hex"
-                                            selected -> "Selected color $hex"
-                                            else -> "Color $hex"
-                                        }
+                                        contentDescription =
+                                            if (selected) "Selected color $hex" else "Color $hex"
                                     },
                                 shape = CircleShape,
                                 color = subjectColor(hex),
-                                shadowElevation = if (locked) 0.dp else 3.dp
+                                shadowElevation = 3.dp
                             ) {
                                 Box(contentAlignment = Alignment.Center) {
-                                    when {
-                                        locked -> Text("🔒", style = MaterialTheme.typography.bodyMedium)
-                                        selected -> Text(
+                                    if (selected) {
+                                        Text(
                                             "✓",
                                             color = Color.Black,
                                             style = MaterialTheme.typography.titleLarge

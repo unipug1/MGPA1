@@ -15,6 +15,7 @@ class HomeViewModel : ViewModel() {
     private val _uiState = MutableStateFlow<HomeUIState>(HomeUIState.Loading)
     private val breakLogs = mutableListOf<BreakLog>()
     private var timerJob: Job? = null
+    private var breakJob: Job? = null
     private var focusStartedAtMillis = 0L
     private var breakStartedAtMillis: Long? = null
     val uiState: StateFlow<HomeUIState> = _uiState.asStateFlow()
@@ -79,11 +80,16 @@ class HomeViewModel : ViewModel() {
     }
 
     fun deleteSubject(id: String) {
-        val currentState = _uiState.value
-        if (currentState !is HomeUIState.Success) return
-        // filter subject given id
-        val updatedList = currentState.subjects.filter { it.id != id}
-        _uiState.value = currentState.copy(subjects = updatedList)
+        val state = _uiState.value as? HomeUIState.Success ?: return
+        if (state.activeSubject?.id == id) return
+
+        val subject = state.subjects.firstOrNull { it.id == id } ?: return
+
+        _uiState.value = state.copy(
+            subjects = state.subjects.filterNot { it.id == id },
+            deletedSubjectStudySeconds =
+                state.deletedSubjectStudySeconds + subject.timeSpentSeconds
+        )
     }
 
     fun setSubjectArchived(id: String, archived: Boolean) {
@@ -110,6 +116,8 @@ class HomeViewModel : ViewModel() {
         val breakSeconds = breakStartedAtMillis?.let { (now - it) / 1_000L }
         breakStartedAtMillis = null
         focusStartedAtMillis = now
+        breakJob?.cancel()
+        breakJob = null
 
         _uiState.value = state.copy(
             activeSubject = selected,
@@ -155,8 +163,24 @@ class HomeViewModel : ViewModel() {
             activeSubject = null,
             isTimerRunning = false,
             currentFocusTime = 0L,
-            pendingBreakSeconds = null
+            pendingBreakSeconds = null,
+            currentBreakSeconds = 0L
         )
+
+        breakJob?.cancel()
+        breakJob = viewModelScope.launch {
+            while (true) {
+                delay(250L)
+
+                val current = _uiState.value as? HomeUIState.Success ?: break
+                if (current.activeSubject != null) break
+
+                val elapsed = (SystemClock.elapsedRealtime() - now) / 1_000L
+                if (elapsed != current.currentBreakSeconds) {
+                    _uiState.value = current.copy(currentBreakSeconds = elapsed)
+                }
+            }
+        }
     }
 
     fun dismissBreakLog(tag: String? = null) {

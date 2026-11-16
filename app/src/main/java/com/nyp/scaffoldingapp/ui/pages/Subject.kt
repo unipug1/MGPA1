@@ -21,7 +21,9 @@ sealed interface HomeUIState {
         val currentRestTime: Long,
         val isTimerRunning: Boolean,
         val activeSubject: Subject?,
-        val pendingBreakSeconds: Long? = null
+        val pendingBreakSeconds: Long? = null,
+        val currentBreakSeconds: Long = 0L,
+        val deletedSubjectStudySeconds: Long = 0L
     ) : HomeUIState
     data class Error(val message: String) : HomeUIState
 }
