@@ -68,7 +68,7 @@ fun AppScaffold() {
         Box(Modifier.padding(padding).fillMaxSize()) {
             when (selectedTab) {
                 Tab.PAGE1 -> HomePage(Modifier, HomeViewModel())
-                Tab.PAGE2 -> GroupsPage(Modifier, GroupViewModel())
+                Tab.PAGE2 -> GroupPage(Modifier, GroupViewModel())
                 Tab.PAGE3 -> Page3()
                 Tab.PAGE4 -> Page4()
             }
