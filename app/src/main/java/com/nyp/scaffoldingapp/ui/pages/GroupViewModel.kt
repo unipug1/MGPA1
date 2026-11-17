@@ -2,7 +2,6 @@ package com.nyp.scaffoldingapp.ui.pages
 
 import androidx.lifecycle.ViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import java.util.UUID
 
@@ -47,11 +46,56 @@ class GroupViewModel : ViewModel() {
         )
     )
 
+    private val _messages = MutableStateFlow(
+        listOf(
+            ChatMessage(
+                messageID = "msg1",
+                groupID = "group1",
+                senderName = "_1ucky",
+                message = "Hello everyone!",
+                timestamp = System.currentTimeMillis(),
+                isMine = false
+            ),
+            ChatMessage(
+                messageID = "msg2",
+                groupID = "group1",
+                senderName = "Me",
+                message = "Hi!",
+                timestamp = System.currentTimeMillis(),
+                isMine = true
+            ),
+            ChatMessage(
+                messageID = "msg3",
+                groupID = "group2",
+                senderName = "_sze:(",
+                message = "Lock in",
+                timestamp = System.currentTimeMillis(),
+                isMine = false
+            )
+        )
+    )
+
     // read only:
     val groups = _groups.asStateFlow()
     val notifications = _notifications.asStateFlow()
+    val messages = _messages.asStateFlow()
 
     fun clearNotifications() {
         _notifications.value = emptyList()
+    }
+
+    fun sendMessage(groupID: String, messageText: String) {
+        if (messageText.isBlank()) return
+
+        val newMessage = ChatMessage(
+            messageID = UUID.randomUUID().toString(),
+            groupID = groupID,
+            senderName = "Me",
+            message = messageText.trim(),
+            timestamp = System.currentTimeMillis(),
+            isMine = true
+        )
+
+        _messages.value += newMessage
     }
 }

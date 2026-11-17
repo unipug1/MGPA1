@@ -16,3 +16,12 @@ data class GroupNotification(
     val message: String,
     val date: Long
 )
+
+data class ChatMessage(
+    val messageID: String,
+    val groupID: String,
+    val senderName: String,
+    val message: String,
+    val timestamp: Long,
+    val isMine: Boolean
+)
