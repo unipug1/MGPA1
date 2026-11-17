@@ -1,18 +1,23 @@
 package com.nyp.scaffoldingapp.ui.pages
 
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.toMutableStateList
-import androidx.compose.ui.graphics.Color
-import androidx.core.graphics.toColorInt
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
+import android.os.SystemClock
+import java.util.UUID
+import kotlinx.coroutines.Job
 
 class HomeViewModel : ViewModel() {
     private val _uiState = MutableStateFlow<HomeUIState>(HomeUIState.Loading)
+    private val breakLogs = mutableListOf<BreakLog>()
+    private var timerJob: Job? = null
+    private var breakJob: Job? = null
+    private var focusStartedAtMillis = 0L
+    private var breakStartedAtMillis: Long? = null
     val uiState: StateFlow<HomeUIState> = _uiState.asStateFlow()
 
     init {
@@ -32,7 +37,7 @@ class HomeViewModel : ViewModel() {
                     currentFocusTime = 0,
                     currentRestTime = 0,
                     isTimerRunning = false,
-                    activeSubject = fetchedSubjects.first()
+                    activeSubject = null
                 )
             }
             catch (e: Exception) {
@@ -49,28 +54,15 @@ class HomeViewModel : ViewModel() {
         if (trimmedName.isEmpty()) return
 
         val newSubject = Subject(
-            id = "4",
+            id = UUID.randomUUID().toString(),
             name = trimmedName,
-            0,
+            timeSpentSeconds = 0L,
             colorHex = color
         )
 
         _uiState.value = currentState.copy(
             subjects = currentState.subjects + newSubject
         )
-    }
-
-    fun moveSubject(fromIndex: Int, toIndex: Int) {
-        val currentState = _uiState.value
-        if (currentState !is HomeUIState.Success) return
-
-        val mutableList = currentState.subjects.toMutableList()
-        // move item in list
-        val item = mutableList.removeAt(fromIndex)
-        mutableList.add(toIndex, item)
-
-        // update UI state with newly ordered list
-        _uiState.value = currentState.copy(subjects = mutableList)
     }
 
     fun updateSubject(id: String, newName: String, newColor: String) {
@@ -88,17 +80,117 @@ class HomeViewModel : ViewModel() {
     }
 
     fun deleteSubject(id: String) {
-        val currentState = _uiState.value
-        if (currentState !is HomeUIState.Success) return
-        // filter subject given id
-        val updatedList = currentState.subjects.filter { it.id != id}
-        _uiState.value = currentState.copy(subjects = updatedList)
+        val state = _uiState.value as? HomeUIState.Success ?: return
+        if (state.activeSubject?.id == id) return
+
+        val subject = state.subjects.firstOrNull { it.id == id } ?: return
+
+        _uiState.value = state.copy(
+            subjects = state.subjects.filterNot { it.id == id },
+            deletedSubjectStudySeconds =
+                state.deletedSubjectStudySeconds + subject.timeSpentSeconds
+        )
     }
 
-    fun toggleTimer() {
-        val currentState = _uiState.value
-        if (currentState is HomeUIState.Success) {
-            _uiState.value = currentState.copy(isTimerRunning = !currentState.isTimerRunning)
+    fun setSubjectArchived(id: String, archived: Boolean) {
+        val state = _uiState.value as? HomeUIState.Success ?: return
+        if (state.activeSubject?.id == id) return
+
+        _uiState.value = state.copy(
+            subjects = state.subjects.map { subject ->
+                if (subject.id == id) subject.copy(isArchived = archived)
+                else subject
+            }
+        )
+    }
+
+    fun startTimer(subject: Subject) {
+        val state = _uiState.value as? HomeUIState.Success ?: return
+        if (state.activeSubject != null) return
+
+        val selected = state.subjects.firstOrNull {
+            it.id == subject.id && !it.isArchived
+        } ?: return
+
+        val now = SystemClock.elapsedRealtime()
+        val breakSeconds = breakStartedAtMillis?.let { (now - it) / 1_000L }
+        breakStartedAtMillis = null
+        focusStartedAtMillis = now
+        breakJob?.cancel()
+        breakJob = null
+
+        _uiState.value = state.copy(
+            activeSubject = selected,
+            isTimerRunning = true,
+            currentFocusTime = 0L,
+            currentRestTime = state.currentRestTime + (breakSeconds ?: 0L),
+            pendingBreakSeconds = breakSeconds?.takeIf { it > 0L }
+        )
+
+        timerJob = viewModelScope.launch {
+            while (true) {
+                delay(250L)
+                val current = _uiState.value as? HomeUIState.Success ?: break
+                if (!current.isTimerRunning) break
+
+                val elapsed = (SystemClock.elapsedRealtime() - focusStartedAtMillis) / 1_000L
+                if (elapsed != current.currentFocusTime) {
+                    _uiState.value = current.copy(currentFocusTime = elapsed)
+                }
+            }
         }
+    }
+
+    fun stopForBreak() {
+        val state = _uiState.value as? HomeUIState.Success ?: return
+        val subjectId = state.activeSubject?.id ?: return
+        val now = SystemClock.elapsedRealtime()
+        val focusSeconds = (now - focusStartedAtMillis) / 1_000L
+
+        timerJob?.cancel()
+        timerJob = null
+        breakStartedAtMillis = now
+
+        _uiState.value = state.copy(
+            subjects = state.subjects.map { subject ->
+                if (subject.id == subjectId) {
+                    subject.copy(timeSpentSeconds = subject.timeSpentSeconds + focusSeconds)
+                }
+                else {
+                    subject
+                }
+            },
+            activeSubject = null,
+            isTimerRunning = false,
+            currentFocusTime = 0L,
+            pendingBreakSeconds = null,
+            currentBreakSeconds = 0L
+        )
+
+        breakJob?.cancel()
+        breakJob = viewModelScope.launch {
+            while (true) {
+                delay(250L)
+
+                val current = _uiState.value as? HomeUIState.Success ?: break
+                if (current.activeSubject != null) break
+
+                val elapsed = (SystemClock.elapsedRealtime() - now) / 1_000L
+                if (elapsed != current.currentBreakSeconds) {
+                    _uiState.value = current.copy(currentBreakSeconds = elapsed)
+                }
+            }
+        }
+    }
+
+    fun dismissBreakLog(tag: String? = null) {
+        val state = _uiState.value as? HomeUIState.Success ?: return
+        val seconds = state.pendingBreakSeconds ?: return
+
+        if (tag != null) {
+            breakLogs.add(BreakLog(durationSeconds = seconds, tag = tag))
+        }
+
+        _uiState.value = state.copy(pendingBreakSeconds = null)
     }
 }
