@@ -13,9 +13,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.RectangleShape
-import androidx.core.graphics.toColorInt
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.collectAsState
@@ -26,31 +23,43 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 
+private enum class GroupsScreen {
+    MyGroups,
+    Discover,
+    Create,
+    GroupHome,
+    Rankings,
+    Invite,
+    GroupSettings,
+    Chat,
+    ChatSettings,
+    NotificationSettings
+}
+
+private enum class GroupTab {
+    Home,
+    Rankings,
+    Invite
+}
+
 @Composable
-fun GroupsPage(modifier: Modifier = Modifier, viewModel: GroupViewModel) {
-    var groups by rememberSaveable {
-        mutableStateOf(listOf(
-            Group("testGroup", "1", "JC Year 2", 3600, 3, 2, "test", "01-01-2022", "tester", "public"),
-            Group("testGroup2", "2", "Poly", 3600, 3, 2, "test", "01-01-2022", "tester", "private")
-        ))
-    }
-
-    var selectedGroupID by rememberSaveable {
-        mutableStateOf<String?>(null)
-    }
-    val selectedGroup = groups.firstOrNull{it.groupID == selectedGroupID}
-
+fun GroupsPage(
+    modifier: Modifier = Modifier,
+    viewModel: GroupViewModel,
+) {
     val messagesByGroup by viewModel.messagesByGroup.collectAsState()
     val notificationSettings by viewModel.notificationSettings.collectAsState()
     val chatEnabledSetting by viewModel.chatEnabled.collectAsState()
+    val groups by viewModel.groups.collectAsState()
 
-    var showNotifications by rememberSaveable {
-        mutableStateOf(false)
-    }
+    var showNotifications by rememberSaveable { mutableStateOf(false) }
+    var showDiscover by rememberSaveable { mutableStateOf(false) }
 
-    var showDiscover by rememberSaveable {
-        mutableStateOf(false)
-    }
+    var screen by rememberSaveable { mutableStateOf(GroupsScreen.MyGroups) }
+    var selectedGroupID by rememberSaveable { mutableStateOf<String?>(null) }
+    val selectedGroup = groups.firstOrNull{ it.groupID == selectedGroupID }
+
+    var chatBackScreen by rememberSaveable { mutableStateOf(GroupsScreen.MyGroups) }
 
     Surface(Modifier.fillMaxSize(),
         color = MaterialTheme.colorScheme.background) {
@@ -94,10 +103,10 @@ fun GroupsPage(modifier: Modifier = Modifier, viewModel: GroupViewModel) {
             )
         }
         else if (showDiscover) {
-            GroupsDiscoverPage(Modifier,
+            GroupsDiscoverPage(
                 onBack = {showDiscover = false},
                 onGroupCreated = { newGroup ->
-                    groups = groups + newGroup
+                    viewModel.addGroup(newGroup)
                     showDiscover = false
                 },
                 onGroupJoined = { group ->
@@ -108,7 +117,7 @@ fun GroupsPage(modifier: Modifier = Modifier, viewModel: GroupViewModel) {
                         val joinedGroup = group.copy(
                             currentMemberCount = group.currentMemberCount + 1
                         )
-                        groups = groups + group
+                        viewModel.addGroup(joinedGroup)
                         showDiscover = false
                     }
                 }
@@ -126,16 +135,23 @@ fun GroupsPage(modifier: Modifier = Modifier, viewModel: GroupViewModel) {
                     }
                 }
 
-
                 // render group chat rows in scrolling list
                 LazyColumn(Modifier.weight(1f)) {
                     items(groups, key = {it.groupID}) { item ->
-                        GroupRow(item) { groupID ->
-                            selectedGroupID = groupID
-                        }
+                        GroupRow(
+                            group = item,
+                            onOpenGroup = {
+                                selectedGroupID = item.groupID
+                                screen = GroupsScreen.GroupHome
+                            },
+                            onOpenChat = {
+                                selectedGroupID = item.groupID
+                                chatBackScreen = GroupsScreen.MyGroups
+                                screen = GroupsScreen.Chat
+                            }
+                        )
                     }
                 }
-
 
                 Button(onClick = {showDiscover = true}) {
                     Text("+")
@@ -144,14 +160,12 @@ fun GroupsPage(modifier: Modifier = Modifier, viewModel: GroupViewModel) {
         }
     }
 
-
     var groupNotifications by rememberSaveable {
         mutableStateOf(listOf(
             GroupNotification("1", "testGroup", "Aisha nudged you", "2 days ago"),
             GroupNotification("2", "testGroup2", "John nudged you", "4/24/2026")
         ))
     }
-
 
     if (showNotifications) {
         GroupNotificationsDialog(
@@ -162,53 +176,72 @@ fun GroupsPage(modifier: Modifier = Modifier, viewModel: GroupViewModel) {
     }
 }
 
-
 @Composable
-private fun GroupRow(group: Group,
-                     onChatClick: (String) -> Unit) {
-    Row(Modifier.fillMaxWidth()) {
-        Column(Modifier.weight(1f)) {
-            Text(group.groupName)
-
-
-            Text("${group.yearOfStudy} · ${group.currentMemberCount}/${group.capacity} · ${group.ownerName}")
+private fun GroupRow(
+    group: Group,
+    onOpenGroup: () -> Unit,
+    onOpenChat: () -> Unit
+) {
+    Row(modifier = Modifier
+        .fillMaxWidth()
+        .padding(horizontal = 16.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = Modifier
+            .weight(1f)
+            .heightIn(min = 56.dp)
+            .clickable(onClick = onOpenGroup)
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.Center
+        ) {
+            Text(group.groupName, style = MaterialTheme.typography.titleMedium)
+            Text(
+                text = "${group.yearOfStudy} · " +
+                "${group.currentMemberCount}/${group.capacity} people · " +
+                group.ownerName +
+                if (group.privacyStatus.equals("private", ignoreCase = true)) {
+                    " · Private"
+                } else {
+                    ""
+                },
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
-        Button(onClick = {onChatClick(group.groupID)}) {
-            // placeholder for now
-            Text("Chat")
+
+        Surface(
+            onClick = onOpenChat,
+            modifier = Modifier.size(56.dp),
+            shape = RoundedCornerShape(10.dp),
+            color = MaterialTheme.colorScheme.surfaceVariant
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Text("Chat", style = MaterialTheme.typography.labelSmall)
+            }
         }
     }
 }
 
-
 @Composable
-private fun GroupChatPage(group: Group,
-                          groupChatMessages: List<ChatMessage>,
-                          selectedOption: String,
-                          noticeOption: String,
-                          commentOption: String,
-                          newPostOption: String,
-                          chatEnabled: Boolean,
-                          onBack: () -> Unit,
-                          onSend: (String) -> Unit,
-                          onOptionSelected: (String) -> Unit,
-                          onNoticeOptionSelected: (String) -> Unit,
-                          onCommentOptionSelected: (String) -> Unit,
-                          onNewPostOptionSelected: (String) -> Unit,
-                          onChatEnabled: (Boolean) -> Unit
+private fun GroupChatPage(
+    group: Group,
+    groupChatMessages: List<ChatMessage>,
+    selectedOption: String,
+    noticeOption: String,
+    commentOption: String,
+    newPostOption: String,
+    chatEnabled: Boolean,
+    onBack: () -> Unit,
+    onSend: (String) -> Unit,
+    onOptionSelected: (String) -> Unit,
+    onNoticeOptionSelected: (String) -> Unit,
+    onCommentOptionSelected: (String) -> Unit,
+    onNewPostOptionSelected: (String) -> Unit,
+    onChatEnabled: (Boolean) -> Unit
 ) {
-
-
-    var userInput by rememberSaveable {
-        mutableStateOf("")
-    }
-    var showNotificationSettings by rememberSaveable {
-        mutableStateOf(false)
-    }
-    var showChatInfo by rememberSaveable {
-        mutableStateOf(false)
-    }
-
+    var userInput by rememberSaveable { mutableStateOf("") }
+    var showNotificationSettings by rememberSaveable { mutableStateOf(false) }
+    var showChatInfo by rememberSaveable { mutableStateOf(false) }
 
     if (showNotificationSettings) {
         GroupNotificationSettingsPage(
@@ -246,7 +279,6 @@ private fun GroupChatPage(group: Group,
                 }
             }
 
-
             // render messages below - change UI later
             LazyColumn(Modifier.weight(1f)) {
                 items(groupChatMessages, key = {it.id}) { chat ->
@@ -254,16 +286,14 @@ private fun GroupChatPage(group: Group,
                 }
             }
 
-
             // user inputs
-            Row() {
+            Row {
                 OutlinedTextField(
                     value = userInput,
                     onValueChange = {userInput = it},
                     modifier = Modifier.weight(1f),
                     placeholder = {Text("Message...")},
                 )
-
 
                 // send button
                 Button(onClick = {onSend(userInput)
@@ -276,7 +306,6 @@ private fun GroupChatPage(group: Group,
     }
 }
 
-
 @Composable
 private fun GroupNotificationSettingsPage(
     onBack: () -> Unit,
@@ -288,15 +317,9 @@ private fun GroupNotificationSettingsPage(
     onNoticeOptionSelected: (String) -> Unit,
     onCommentOptionSelected: (String) -> Unit,
     onNewPostOptionSelected: (String) -> Unit
-)
-{
-    var expanded by rememberSaveable {
-        mutableStateOf(false)
-    }
-
-
+) {
+    var expanded by rememberSaveable { mutableStateOf(false) }
     val options = listOf("On", "Off while studying", "Off")
-
 
     Column(Modifier.fillMaxSize()) {
         Row(Modifier.fillMaxWidth()) {
@@ -306,15 +329,12 @@ private fun GroupNotificationSettingsPage(
             Text("Group notification settings")
         }
 
-
         Row(Modifier.fillMaxWidth()) {
             Text("Group chat")
-            Box(
-            ) {
+            Box {
                 TextButton(onClick = { expanded = true }) {
                     Text(selectedOption)
                 }
-
 
                 DropdownMenu(
                     expanded = expanded,
@@ -333,15 +353,12 @@ private fun GroupNotificationSettingsPage(
             }
         }
 
-
         Row(Modifier.fillMaxWidth()) {
             Text("Notice")
-            Box(
-            ) {
+            Box {
                 TextButton(onClick = { expanded = true }) {
                     Text(noticeOption)
                 }
-
 
                 DropdownMenu(
                     expanded = expanded,
@@ -360,15 +377,12 @@ private fun GroupNotificationSettingsPage(
             }
         }
 
-
         Row(Modifier.fillMaxWidth()) {
             Text("Comment")
-            Box(
-            ) {
+            Box {
                 TextButton(onClick = { expanded = true }) {
                     Text(commentOption)
                 }
-
 
                 DropdownMenu(
                     expanded = expanded,
@@ -387,15 +401,12 @@ private fun GroupNotificationSettingsPage(
             }
         }
 
-
         Row(Modifier.fillMaxWidth()) {
             Text("New post")
-            Box(
-            ) {
+            Box {
                 TextButton(onClick = { expanded = true }) {
                     Text(newPostOption)
                 }
-
 
                 DropdownMenu(
                     expanded = expanded,
@@ -416,7 +427,6 @@ private fun GroupNotificationSettingsPage(
     }
 }
 
-
 @Composable
 private fun GroupInfoPage(
     onBack: () -> Unit,
@@ -431,7 +441,6 @@ private fun GroupInfoPage(
             Text("Group Information")
         }
 
-
         Row(Modifier.fillMaxWidth()) {
             Text("Chat Enabled")
             Switch(
@@ -441,7 +450,6 @@ private fun GroupInfoPage(
         }
     }
 }
-
 
 @Composable
 private fun GroupNotificationsDialog(
@@ -466,11 +474,10 @@ private fun GroupNotificationsDialog(
                     }
                 }
 
-
                 // list of notifications
                 LazyColumn(Modifier.weight(1f)) {
                     items(notifications, key = {it.id}) { item ->
-                        Column() {
+                        Column {
                             Text(item.groupName, style = MaterialTheme.typography.titleSmall)
                             Text(item.message)
                             Text(item.timeLabel)
@@ -483,40 +490,34 @@ private fun GroupNotificationsDialog(
 }
 
 @Composable
-private fun GroupsDiscoverPage(modifier: Modifier = Modifier,
-                               onBack: () -> Unit,
-                               onGroupCreated: (Group) -> Unit,
-                               onGroupJoined: (Group) -> Unit) {
-    var selectedFilter by rememberSaveable {mutableStateOf("New")}
+private fun GroupsDiscoverPage(
+    onBack: () -> Unit,
+    onGroupCreated: (Group) -> Unit,
+    onGroupJoined: (Group) -> Unit
+) {
+    var selectedFilter by rememberSaveable { mutableStateOf("New") }
     val filters = listOf("New", "Attendance", "Study group")
-    var yearChecked by rememberSaveable {mutableStateOf(false)}
-    var availableChecked by rememberSaveable {mutableStateOf(false)}
-    var publicChecked by rememberSaveable {mutableStateOf(false)}
+    var yearChecked by rememberSaveable { mutableStateOf(false) }
+    var availableChecked by rememberSaveable { mutableStateOf(false) }
+    var publicChecked by rememberSaveable { mutableStateOf(false) }
 
     // test groups
     val groups = listOf(
         Group("lock in", "4", "JC Year 1", 3600, 3, 2, "test", "01-01-2022", "tester", "public"),
         Group("testGroup3", "5", "Secondary", 3600, 5, 5, "test", "01-01-2022", "tester", "private")
     )
-    var showCreateGroup by rememberSaveable {
-        mutableStateOf(false)
-    }
-    var selectedDiscoverGroupID by rememberSaveable {
-        mutableStateOf<String?>(null)
-    }
-    val selectedDiscoverGroup = groups.firstOrNull {
-        it.groupID == selectedDiscoverGroupID
-    }
+    var showCreateGroup by rememberSaveable { mutableStateOf(false) }
+    var selectedDiscoverGroupID by rememberSaveable { mutableStateOf<String?>(null) }
+    val selectedDiscoverGroup = groups.firstOrNull { it.groupID == selectedDiscoverGroupID }
 
     Surface(Modifier.fillMaxWidth(),
-        color = MaterialTheme.colorScheme.background) {
-        Column(Modifier
-            .fillMaxWidth()
+        color = MaterialTheme.colorScheme.background
+    ) {
+        Column(Modifier.fillMaxWidth()
             .padding(16.dp)) {
             // top bar: back button + title + search button
-            Row(Modifier
-                .fillMaxWidth()
-                .padding(16.dp)) {
+            Row(Modifier.fillMaxWidth().padding(16.dp)
+            ) {
                 Button(onClick = onBack) {
                     Text("<")
                 }
@@ -527,7 +528,8 @@ private fun GroupsDiscoverPage(modifier: Modifier = Modifier,
 
             // filters row
             Row(Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
                 filters.forEach { filter ->
                     FilterChip(
                         selected = selectedFilter == filter,
@@ -551,29 +553,27 @@ private fun GroupsDiscoverPage(modifier: Modifier = Modifier,
                 style = MaterialTheme.typography.bodySmall
             )
 
-
             Row(verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
                 // year
                 Checkbox(
                     checked = yearChecked,
-                    onCheckedChange = {yearChecked = it}
+                    onCheckedChange = { yearChecked = it }
                 )
                 Text("J2")
-
 
                 // available
                 Checkbox(
                     checked = availableChecked,
-                    onCheckedChange = {availableChecked = it}
+                    onCheckedChange = { availableChecked = it }
                 )
                 Text("Available")
-
 
                 // public
                 Checkbox(
                     checked = publicChecked,
-                    onCheckedChange = {publicChecked = it}
+                    onCheckedChange = { publicChecked = it }
                 )
                 Text("Public")
             }
@@ -585,20 +585,22 @@ private fun GroupsDiscoverPage(modifier: Modifier = Modifier,
             }
 
             // sorted output - lazy column
-            LazyColumn(Modifier.weight(1f)) {
+            LazyColumn(Modifier.weight(1f)
+            ) {
                 items(visibleGroups, key = {it.groupID}) { item ->
                     Card(Modifier.padding(16.dp)
-                        .clickable {selectedDiscoverGroupID = item.groupID}) {
-                        Column(Modifier.fillMaxWidth()) {
+                        .clickable {selectedDiscoverGroupID = item.groupID}
+                    ) {
+                        Column(Modifier.fillMaxWidth()
+                        ) {
                             Text(item.yearOfStudy)
                             Text(item.groupName)
-                            Row() {
+                            Row {
                                 Text("Goal ${item.dailyGoalTime}")
                                 Text("Members ${item.currentMemberCount}/${item.capacity} people")
                                 Text("Group leader ${item.ownerName}")
                             }
-                            Row() {
-                                Text("Attendance")
+                            Row {
                                 Text("Study time")
                                 Text("Started")
                             }
@@ -612,7 +614,8 @@ private fun GroupsDiscoverPage(modifier: Modifier = Modifier,
             // create group button
             Box(Modifier
                 .background(color = MaterialTheme.colorScheme.onSurfaceVariant, shape = CircleShape)) {
-                FloatingActionButton(onClick = {showCreateGroup = true}){
+                FloatingActionButton(onClick = {showCreateGroup = true}
+                ){
                     Text("+")
                 }
             }
@@ -620,7 +623,7 @@ private fun GroupsDiscoverPage(modifier: Modifier = Modifier,
     }
 
     if (showCreateGroup) {
-        CreateGroup(Modifier,
+        CreateGroup(
             onBack = {showCreateGroup = false},
             onCreate = onGroupCreated
         )
@@ -636,45 +639,36 @@ private fun GroupsDiscoverPage(modifier: Modifier = Modifier,
 }
 
 @Composable
-fun CreateGroup(modifier: Modifier = Modifier,
-                onBack: () -> Unit,
-                onCreate: (Group) -> Unit) {
-    // variables
-    var groupName by rememberSaveable {mutableStateOf("")}
-    var password by rememberSaveable {mutableStateOf("")}
-    var category by rememberSaveable {mutableStateOf("")}
-    var dailyGoalTime by rememberSaveable {mutableStateOf("")}
-    var capacity by rememberSaveable {mutableStateOf("")}
-    var description by rememberSaveable {mutableStateOf("")}
+fun CreateGroup(
+    onBack: () -> Unit,
+    onCreate: (Group) -> Unit
+) {
+    var groupName by rememberSaveable { mutableStateOf("") }
+    var password by rememberSaveable { mutableStateOf("") }
+    var category by rememberSaveable { mutableStateOf("") }
+    var dailyGoalTime by rememberSaveable { mutableStateOf("") }
+    var capacity by rememberSaveable { mutableStateOf("") }
+    var description by rememberSaveable { mutableStateOf("") }
 
-    var categoryExpanded by rememberSaveable {
-        mutableStateOf(false)
-    }
-    var goalTimeExpanded by rememberSaveable {
-        mutableStateOf(false)
-    }
-    var capacityExpanded by rememberSaveable {
-        mutableStateOf(false)
-    }
+    var categoryExpanded by rememberSaveable { mutableStateOf(false) }
+    var goalTimeExpanded by rememberSaveable { mutableStateOf(false) }
+    var capacityExpanded by rememberSaveable { mutableStateOf(false) }
     val categoryOptions = listOf(
         "Secondary School", "Polytechnic", "ITE", "JC Year 1", "JC Year 2", "University"
     )
-    val goalTimeOptions = (1..20).map {
-        "$it hour${if (it == 1) "" else "s"} per day"
-    }
-    val capacityOptions = (2..50).map {
-        "$it people"
-    }
+    val goalTimeOptions = (1..20).map { "$it hour${if (it == 1) "" else "s"} per day" }
+    val capacityOptions = (2..50).map { "$it people" }
 
     Surface(Modifier.fillMaxWidth(),
-        color = MaterialTheme.colorScheme.background) {
-        Column(Modifier
-            .fillMaxWidth()
+        color = MaterialTheme.colorScheme.background
+    ) {
+        Column(Modifier.fillMaxWidth()
             .padding(16.dp)
         ) {
             // top bar
             Row(Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically) {
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 Button(onClick = onBack) {
                     Text("<")
                 }
@@ -684,7 +678,7 @@ fun CreateGroup(modifier: Modifier = Modifier,
 
             Spacer(Modifier.height(16.dp))
 
-            Card() {
+            Card {
                 OutlinedTextField(
                     value = groupName,
                     onValueChange = {groupName = it},
@@ -699,11 +693,11 @@ fun CreateGroup(modifier: Modifier = Modifier,
             }
 
             Spacer(Modifier.height(5.dp))
-            Card() {
+            Card {
                 Row(Modifier.fillMaxWidth()) {
                     Text("Category")
                     Spacer(Modifier.weight(1f))
-                    Box() {
+                    Box {
                         TextButton(onClick = {categoryExpanded = true}) {
                             Text("${category.ifBlank { "Select a category" }} ›")
                         }
@@ -723,11 +717,13 @@ fun CreateGroup(modifier: Modifier = Modifier,
                         }
                     }
                 }
+
                 HorizontalDivider(thickness = 2.dp)
+
                 Row(Modifier.fillMaxWidth()) {
                     Text("Daily goal time")
                     Spacer(Modifier.weight(1f))
-                    Box() {
+                    Box {
                         TextButton(onClick = {goalTimeExpanded = true}) {
                             Text("${dailyGoalTime.ifBlank { "Select a goal time" }} ›")
                         }
@@ -747,11 +743,13 @@ fun CreateGroup(modifier: Modifier = Modifier,
                         }
                     }
                 }
+
                 HorizontalDivider(thickness = 2.dp)
+
                 Row(Modifier.fillMaxWidth()) {
                     Text("Capacity")
                     Spacer(Modifier.weight(1f))
-                    Box() {
+                    Box {
                         TextButton(onClick = {capacityExpanded = true}) {
                             Text("${capacity.ifBlank { "Select people" }} ›")
                         }
@@ -774,7 +772,7 @@ fun CreateGroup(modifier: Modifier = Modifier,
             }
 
             Spacer(Modifier.height(5.dp))
-            Card() {
+            Card {
                 OutlinedTextField(
                     value = description,
                     onValueChange = {description = it},
@@ -805,33 +803,32 @@ fun CreateGroup(modifier: Modifier = Modifier,
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun GroupDetailsPage(modifier: Modifier = Modifier,
-                             group: Group,
-                             onBack: () -> Unit,
-                             onJoin: (Group) -> Unit)
-{
+private fun GroupDetailsPage(
+    group: Group,
+    onBack: () -> Unit,
+    onJoin: (Group) -> Unit
+) {
     ModalBottomSheet(
         onDismissRequest = onBack
     ) {
-        Column() {
+        Column {
             Text(group.groupName)
             Spacer(Modifier.height(2.dp))
             Row(Modifier.fillMaxWidth()) {
                 Text("${group.yearOfStudy} · ${group.creationDate}")
             }
             Spacer(Modifier.height(5.dp))
-            Row() {
+            Row {
                 Text("Goal ${group.dailyGoalTime}")
                 Text("Members ${group.currentMemberCount}/${group.capacity}")
                 Text("Group leader ${group.ownerName}")
             }
             Spacer(Modifier.height(5.dp))
-            Row() {
+            Row {
                 Text("Attendance")
                 Text("Study time")
                 Text("Started")
             }
-
             Row(Modifier.fillMaxWidth()) {
                 Button(onClick = onBack) {
                     Text("Close")
@@ -845,9 +842,46 @@ private fun GroupDetailsPage(modifier: Modifier = Modifier,
     }
 }
 
+// reusable centered dialog
+@Composable
+private fun <T> GroupPickerDialog(
+    title: String,
+    options: List<T>,
+    label: (T) -> String,
+    onSelect: (T) -> Unit,
+    onDismiss: () -> Unit
+) {
+    Dialog(onDismissRequest = onDismiss) {
+        Surface(
+            shape = RoundedCornerShape(28.dp),
+            color = MaterialTheme.colorScheme.surface
+        ) {
+            Column(Modifier.padding(vertical = 16.dp)) {
+                Text(
+                    text = title,
+                    modifier = Modifier.padding(horizontal = 22.dp, vertical = 8.dp),
+                    style = MaterialTheme.typography.titleMedium
+                )
+
+                LazyColumn(Modifier.heightIn(max = 520.dp)) {
+                    items(options) { option ->
+                        Text(
+                            text = label(option),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { onSelect(option) }
+                                .padding(horizontal = 28.dp, vertical = 16.dp)
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
 // Preview
 @Preview(showBackground = true)
 @Composable
 private fun MockGroupsPagePreview() {
-    MaterialTheme { GroupsPage(Modifier, GroupViewModel()) }
+    MaterialTheme { GroupsPage(Modifier, viewModel = GroupViewModel(),) }
 }
