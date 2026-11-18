@@ -7,7 +7,14 @@ data class Group(
     val memberCount: Int,
     val capacity: Int,
     val ownerName: String,
-    val privacyStatus: String
+    val privacyStatus: String,
+
+    // discover group info
+    val dailyGoalTime: Long = 0L,
+    val totalStudyTime: Long = 0L,
+    // val attendanceRate: Int = 0,
+    val description: String = "",
+    val creationDate: Long = System.currentTimeMillis()
 )
 
 data class GroupNotification(

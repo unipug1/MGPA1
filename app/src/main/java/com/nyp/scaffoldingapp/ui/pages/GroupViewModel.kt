@@ -29,6 +29,37 @@ class GroupViewModel : ViewModel() {
         )
     )
 
+    private val _discoverGroups = MutableStateFlow(
+        listOf(
+            Group(
+                groupID = "group3",
+                groupName = "psyducky",
+                yearOfStudy = "Poly & ITE",
+                memberCount = 2,
+                capacity = 5,
+                ownerName = "psyduck",
+                privacyStatus = "Private",
+                dailyGoalTime = 7200L,
+                totalStudyTime = 0L,
+                description = "LOCK INNN",
+                creationDate = System.currentTimeMillis()
+            ),
+            Group(
+                groupID = "group4",
+                groupName = "doofy",
+                yearOfStudy = "Poly & ITE",
+                memberCount = 3,
+                capacity = 3,
+                ownerName = "_sze:(",
+                privacyStatus = "Private",
+                dailyGoalTime = 3600L,
+                totalStudyTime = 360L,
+                description = "LOCK OUT",
+                creationDate = System.currentTimeMillis() - 86_400_000L
+            )
+        )
+    )
+
     private val _notifications = MutableStateFlow(
         listOf(
             GroupNotification(
@@ -77,6 +108,7 @@ class GroupViewModel : ViewModel() {
 
     // read only:
     val groups = _groups.asStateFlow()
+    val discoverGroups = _discoverGroups.asStateFlow()
     val notifications = _notifications.asStateFlow()
     val messages = _messages.asStateFlow()
 

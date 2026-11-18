@@ -40,7 +40,20 @@ import androidx.compose.material3.TextField
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.material3.Button
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.material3.Card
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.material3.Tab
+import androidx.compose.material3.TabRow
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.runtime.mutableIntStateOf
+import java.util.Locale
+import java.text.SimpleDateFormat
+import java.util.Date
+import androidx.compose.material3.FloatingActionButton
+//import androidx.compose.material3.TextFieldDefaults
+import androidx.compose.material3.HorizontalDivider
 
 @Composable
 fun GroupPage(
@@ -48,16 +61,25 @@ fun GroupPage(
     viewModel: GroupViewModel
 ) {
     val groups by viewModel.groups.collectAsState()
+    val discoverGroups by viewModel.discoverGroups.collectAsState()
     val notifications by viewModel.notifications.collectAsState()
     val messages by viewModel.messages.collectAsState()
 
     var selectedGroupID by rememberSaveable { mutableStateOf<String?>(null) }
     val selectedGroup = groups.find {it.groupID == selectedGroupID }
 
-    var showNotifications by rememberSaveable { mutableStateOf(false) }
+    // test value - to be replaced with user's value
+    var userYearOfStudy by rememberSaveable { mutableStateOf("Poly & ITE") }
 
-    BackHandler(enabled = selectedGroupID != null) {
-        selectedGroupID = null
+    var showNotifications by rememberSaveable { mutableStateOf(false) }
+    var showDiscoverGroups by rememberSaveable { mutableStateOf(false) }
+
+    BackHandler(enabled = selectedGroupID != null || showDiscoverGroups) {
+        if (selectedGroupID != null) {
+            selectedGroupID = null
+        } else {
+            showDiscoverGroups = false
+        }
     }
 
     Column(modifier = modifier
@@ -74,6 +96,13 @@ fun GroupPage(
                 onSendMessage = { messageText ->
                     viewModel.sendMessage(selectedGroup.groupID, messageText)
                 }
+            )
+        }
+        else if (showDiscoverGroups) {
+            DiscoverGroupsPage(
+                userYearOfStudy = userYearOfStudy,
+                discoverGroups = discoverGroups,
+                onBack = { showDiscoverGroups = false }
             )
         }
         else {
@@ -114,10 +143,17 @@ fun GroupPage(
                     )
                 }
             }
+            Box(modifier = Modifier.fillMaxWidth().padding(16.dp),
+                contentAlignment = Alignment.CenterEnd
+            ) {
+                IconButton(onClick = { showDiscoverGroups = true }) {
+                    Text("+")
+                }
+            }
         }
     }
 
-    if (showNotifications && selectedGroup == null) {
+    if (showNotifications && selectedGroup == null && !showDiscoverGroups) {
         Popup(
             alignment = Alignment.TopEnd,
             onDismissRequest = {
@@ -410,6 +446,403 @@ private fun MessageBubble(
     }
 }
 
+@Composable
+private fun DiscoverGroupsPage(
+    userYearOfStudy: String,
+    discoverGroups: List<Group>,
+    onBack: () -> Unit
+) {
+    // 0 - new, 1 - study time
+    var selectedTab by rememberSaveable { mutableIntStateOf(0) }
+    var filterByYear by rememberSaveable { mutableStateOf(false) }
+    var filterByAvailable by rememberSaveable { mutableStateOf(false) }
+    var filterByPublic by rememberSaveable { mutableStateOf(false) }
+
+    var showCreateGroup by rememberSaveable { mutableStateOf(false) }
+
+    if (showCreateGroup) {
+        CreateGroupPage(
+            onBack = { showCreateGroup = false }
+        )
+    }
+    else {
+        // box allows children to overlap
+        Box(
+            modifier = Modifier.fillMaxSize()
+        ) {
+            Column(modifier = Modifier.fillMaxSize()
+            ) {
+                Box(
+                    modifier = Modifier.fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 12.dp)
+                ) {
+                    IconButton(
+                        onClick = onBack,
+                        modifier = Modifier.align(Alignment.CenterStart)
+                    ) {
+                        Text("<")
+                    }
+
+                    Text(
+                        text = "Study group",
+                        modifier = Modifier.align(Alignment.Center),
+                        style = MaterialTheme.typography.titleLarge
+                    )
+
+                    IconButton(
+                        onClick = {},
+                        modifier = Modifier.align(Alignment.CenterEnd)
+                    ) {
+                        Text("⌕")
+                    }
+                }
+
+                val tabs = listOf("New", "Study time")
+                TabRow(
+                    selectedTabIndex = selectedTab
+                ) {
+                    tabs.forEachIndexed { index, title ->
+                        Tab(
+                            selected = selectedTab == index,
+                            onClick = {
+                                selectedTab = index
+                            },
+                            text = {
+                                Text(title)
+                            }
+                        )
+                    }
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth()
+                        .padding(horizontal = 16.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Checkbox(
+                            checked = filterByYear,
+                            onCheckedChange = {
+                                filterByYear = it
+                            }
+                        )
+
+                        Text(
+                            text = userYearOfStudy,
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Checkbox(
+                            checked = filterByAvailable,
+                            onCheckedChange = {
+                                filterByAvailable = it
+                            }
+                        )
+
+                        Text(
+                            text = "Available",
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Checkbox(
+                            checked = filterByPublic,
+                            onCheckedChange = {
+                                filterByPublic = it
+                            }
+                        )
+
+                        Text(
+                            text = "Public",
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+                }
+
+                when (selectedTab) {
+                    0 -> {
+                        Text(
+                            text = "Groups sorted by creation date",
+                            modifier = Modifier.padding(16.dp),
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
+
+                    1 -> {
+                        Text(
+                            text = "Groups sorted by study time",
+                            modifier = Modifier.padding(16.dp),
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                    }
+                }
+
+                val sortedGroups = when (selectedTab) {
+                    0 -> discoverGroups.sortedByDescending { it.creationDate }
+                    1 -> discoverGroups.sortedByDescending { it.totalStudyTime }
+                    else -> discoverGroups
+                }
+
+                val filteredGroups = sortedGroups.filter { item ->
+                    val matchesYear = !filterByYear ||
+                            item.yearOfStudy == userYearOfStudy
+
+                    val matchesAvailability = !filterByAvailable ||
+                            item.memberCount < item.capacity
+
+                    val matchesPrivacy = !filterByPublic ||
+                            item.privacyStatus.equals("Public", ignoreCase = true)
+
+                    matchesYear && matchesAvailability && matchesPrivacy
+                }
+
+                LazyColumn(
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    if (filteredGroups.isEmpty()) {
+                        item {
+                            Text(
+                                text = "No groups found",
+                                modifier = Modifier.fillMaxWidth()
+                                    .padding(24.dp),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                textAlign = TextAlign.Center
+                            )
+                        }
+                    }
+                    items(filteredGroups, key = { it.groupID }) { item ->
+                        DiscoverGroupCard(item)
+                    }
+                }
+            }
+
+            FloatingActionButton(
+                onClick = { showCreateGroup = true },
+                modifier = Modifier.align(Alignment.BottomEnd)
+                    .padding(16.dp)
+            ) {
+                Text("+")
+            }
+        }
+    }
+}
+
+@Composable
+private fun DiscoverGroupCard(
+    group: Group
+) {
+    Card(modifier = Modifier.fillMaxWidth()
+        .padding(horizontal = 16.dp, vertical = 8.dp)
+    ) {
+        Column(modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text(
+                text = group.groupName,
+                style = MaterialTheme.typography.titleMedium
+            )
+            Text(
+                text = "${group.yearOfStudy} · " +
+                "${group.memberCount}/${group.capacity} members",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Text(
+                text = "Group leader: ${group.ownerName}",
+                style = MaterialTheme.typography.bodyMedium
+            )
+            Text(
+                text = "Daily goal: ${formatStudyDuration(group.dailyGoalTime)}",
+                style = MaterialTheme.typography.bodyMedium
+            )
+            Text(
+                text = "Total study time: ${formatStudyDuration(group.totalStudyTime)}",
+                style = MaterialTheme.typography.bodyMedium
+            )
+            Text(
+                text = group.description,
+                style = MaterialTheme.typography.bodyMedium
+            )
+            Text(
+                text = "Privacy: ${group.privacyStatus}",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Text(
+                text = "Created: ${formatGroupCreationDate(group.creationDate)}",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+    }
+}
+
+@Composable
+private fun CreateGroupPage(
+    onBack: () -> Unit
+) {
+    var groupName by rememberSaveable { mutableStateOf("") }
+    var password by rememberSaveable { mutableStateOf("") }
+    var selectedCategory by rememberSaveable { mutableStateOf("") }
+    var selectedDailyGoal by rememberSaveable { mutableIntStateOf(0) }
+    var selectedCapacity by rememberSaveable { mutableIntStateOf(0) }
+
+    val categories = listOf(
+        "Secondary", "JC Year 1", "JC Year 2", "Poly & ITE"
+    )
+    val dailyGoals = (1..10).toList()
+    val capacity = (2..30).toList()
+
+    Column(modifier = Modifier.fillMaxSize()
+    ) {
+        Box(modifier = Modifier.fillMaxWidth()
+            .padding(16.dp)
+        ) {
+            IconButton(onClick = onBack,
+                modifier = Modifier.align(Alignment.CenterStart)
+            ) {
+                Text("<")
+            }
+            Text(
+                text = "Create group",
+                modifier = Modifier.align(Alignment.Center)
+            )
+        }
+
+        Column(modifier = Modifier.fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 12.dp)
+        ) {
+            Surface(modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                color = MaterialTheme.colorScheme.surface
+            ) {
+                Column {
+                    TextField(
+                        value = groupName,
+                        onValueChange = { groupName = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        placeholder = {
+                            Text("Enter group name")
+                        },
+                        singleLine = true
+                    )
+                    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                    TextField(
+                        value = password,
+                        onValueChange = { password = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        placeholder = {
+                            Text("Password (optional)")
+                        },
+                        singleLine = true
+                    )
+                }
+            }
+
+            Surface(modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                color = MaterialTheme.colorScheme.surface
+            ) {
+                Column{
+                    CreateGroupDropdownRow(
+                        label = "Category",
+                        selectedValue = selectedCategory.ifEmpty {
+                            "Select a category"
+                        },
+                        options = categories,
+                        onValueSelected = { selectedCategory = it }
+                    )
+                    HorizontalDivider(modifier = Modifier.padding(16.dp))
+                    CreateGroupDropdownRow(
+                        label = "Daily goal time",
+                        selectedValue = if (selectedDailyGoal == 0) {
+                            "Daily goal time"
+                        } else {
+                            "$selectedDailyGoal hours"
+                        },
+                        options = dailyGoals.map { "$it hours per day" },
+                        onValueSelected = { selected ->
+                            // substring extracts numeric parts of values
+                            selectedDailyGoal = selected.substringBefore(" ").toInt()
+                        }
+                    )
+                    HorizontalDivider(modifier = Modifier.padding(16.dp))
+                    CreateGroupDropdownRow(
+                        label = "Capacity",
+                        selectedValue = "$selectedCapacity people",
+                        options = capacity.map { "$it people" },
+                        onValueSelected = { selected ->
+                            selectedCapacity = selected.substringBefore(" ").toInt()
+                        }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun CreateGroupDropdownRow(
+    label: String,
+    selectedValue: String,
+    options: List<String>,
+    onValueSelected: (String) -> Unit
+) {
+    var expanded by rememberSaveable { mutableStateOf(false) }
+
+    Box(modifier = Modifier.fillMaxWidth()
+    ) {
+        Row(modifier = Modifier.fillMaxWidth()
+            .clickable { expanded = true }
+            .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = label,
+                style = MaterialTheme.typography.bodyMedium
+            )
+            Spacer(modifier = Modifier.weight(1f))
+
+            Box {
+                Row(verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = selectedValue,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = " >",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                DropdownMenu(expanded = expanded,
+                    onDismissRequest = { expanded = false }
+                ) {
+                    options.forEach { option ->
+                        DropdownMenuItem(
+                            text = { Text(option) },
+                            onClick = {
+                                onValueSelected(option)
+                                expanded = false
+                            }
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
 private fun formatRelativeTime(timestamp: Long): String {
     val currentTime = System.currentTimeMillis()
     val difference = (currentTime - timestamp).coerceAtLeast(0L)
@@ -425,21 +858,35 @@ private fun formatRelativeTime(timestamp: Long): String {
         else -> "${days}d ago"
     }
 }
+
 private fun formatMessageTime(timestamp: Long): String {
-    val formatter = java.text.SimpleDateFormat(
+    val formatter = SimpleDateFormat(
         "h:mm:a",
-        java.util.Locale.getDefault()
+        Locale.getDefault()
     )
 
-    return formatter.format(java.util.Date(timestamp))
+    return formatter.format(Date(timestamp))
 }
 private fun formatMessageDate(timestamp: Long): String {
-    val formatter = java.text.SimpleDateFormat(
+    val formatter = SimpleDateFormat(
         "EEE, MMM d,yyyy",
-        java.util.Locale.getDefault()
+        Locale.getDefault()
     )
 
-    return formatter.format(java.util.Date(timestamp))
+    return formatter.format(Date(timestamp))
+}
+private fun formatStudyDuration(seconds: Long): String {
+    val hours = seconds / 3600
+    val minutes = (seconds % 3600) / 60
+    return "${hours}h ${minutes}m"
+}
+private fun formatGroupCreationDate(timestamp: Long): String {
+    val dateFormat = SimpleDateFormat(
+        "dd MMM yyyy",
+        Locale.getDefault()
+    )
+
+    return dateFormat.format(Date(timestamp))
 }
 
 // Preview
