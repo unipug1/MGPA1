@@ -56,11 +56,11 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.DayOfWeek
-import java.time.Duration
 import java.time.temporal.ChronoUnit
 import java.time.temporal.TemporalAdjuster
 import java.util.UUID
 import java.time.temporal.TemporalAdjusters
+import kotlin.time.Duration
 
 
 enum class TaskType{
@@ -95,10 +95,14 @@ enum class CompletionProgress{
 class Routine(
     var days: MutableList<DayOfWeek> = mutableListOf(),
     var routineType: RoutineType = RoutineType.NONE,
-    var frequency : Int = 0,
-    val startDate : LocalDate = LocalDate.now()
+    var frequency : Int = 1,
+    var startDate : LocalDate = LocalDate.now(),
+    var endDate : LocalDate? = null
 ){
     fun OnDay(dateTime : LocalDate): Boolean{
+        if (routineType == RoutineType.NONE)
+            return true
+        endDate?.let{if ((dateTime.toEpochDay() - it.toEpochDay()) < 0 ) return false}
         if (routineType == RoutineType.WEEKLY) {
             if (!(dateTime.dayOfWeek in days))
                 return false
@@ -138,11 +142,11 @@ class Task(
              time : Edit<LocalDateTime?> = Edit.Keep,
              duration: Edit<Duration?> = Edit.Keep,
              routine: Edit<Routine> = Edit.Keep) : Task{
-        name.ApplyChange(this.name)
-        progress.ApplyChange(this.completionProgress)
-        time.ApplyChange(this.time)
-        duration.ApplyChange(this.duration)
-        routine.ApplyChange(this.routine)
+        this.name = name.ApplyChange(this.name)
+        this.completionProgress = progress.ApplyChange(this.completionProgress)
+        this.time = time.ApplyChange(this.time)
+        this.duration = duration.ApplyChange(this.duration)
+        this.routine = routine.ApplyChange(this.routine)
         return this
     }
 
