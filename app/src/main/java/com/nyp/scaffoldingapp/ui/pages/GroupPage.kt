@@ -54,6 +54,9 @@ import java.util.Date
 import androidx.compose.material3.FloatingActionButton
 //import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.RadioButton
 
 @Composable
 fun GroupPage(
@@ -102,7 +105,11 @@ fun GroupPage(
             DiscoverGroupsPage(
                 userYearOfStudy = userYearOfStudy,
                 discoverGroups = discoverGroups,
-                onBack = { showDiscoverGroups = false }
+                onBack = { showDiscoverGroups = false },
+                onCreateGroup = { newGroup ->
+                    viewModel.createGroup(newGroup)
+                    showDiscoverGroups = false
+                }
             )
         }
         else {
@@ -143,7 +150,9 @@ fun GroupPage(
                     )
                 }
             }
-            Box(modifier = Modifier.fillMaxWidth().padding(16.dp),
+            Box(modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
                 contentAlignment = Alignment.CenterEnd
             ) {
                 IconButton(onClick = { showDiscoverGroups = true }) {
@@ -343,14 +352,13 @@ private fun GroupChatPage(
                 val previousDate = if (item > 0) {
                     formatMessageDate(sortedMessages[item -1].timestamp)
                 }
-                else {
-                    null
-                }
+                else { null }
 
                 if (currentDate != previousDate) {
                     Text(
                         text = currentDate,
-                        modifier = Modifier.fillMaxWidth()
+                        modifier = Modifier
+                            .fillMaxWidth()
                             .padding(vertical = 12.dp),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -360,7 +368,8 @@ private fun GroupChatPage(
                 MessageBubble(message = message)
             }
         }
-        Row(modifier = Modifier.fillMaxWidth()
+        Row(modifier = Modifier
+            .fillMaxWidth()
             .padding(horizontal = 12.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -450,7 +459,8 @@ private fun MessageBubble(
 private fun DiscoverGroupsPage(
     userYearOfStudy: String,
     discoverGroups: List<Group>,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onCreateGroup: (Group) -> Unit
 ) {
     // 0 - new, 1 - study time
     var selectedTab by rememberSaveable { mutableIntStateOf(0) }
@@ -462,7 +472,11 @@ private fun DiscoverGroupsPage(
 
     if (showCreateGroup) {
         CreateGroupPage(
-            onBack = { showCreateGroup = false }
+            onBack = { showCreateGroup = false },
+            onCreateGroup = { newGroup ->
+                onCreateGroup(newGroup)
+                showCreateGroup = false
+            }
         )
     }
     else {
@@ -473,7 +487,8 @@ private fun DiscoverGroupsPage(
             Column(modifier = Modifier.fillMaxSize()
             ) {
                 Box(
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier
+                        .fillMaxWidth()
                         .padding(horizontal = 16.dp, vertical = 12.dp)
                 ) {
                     IconButton(
@@ -514,7 +529,8 @@ private fun DiscoverGroupsPage(
                     }
                 }
                 Row(
-                    modifier = Modifier.fillMaxWidth()
+                    modifier = Modifier
+                        .fillMaxWidth()
                         .padding(horizontal = 16.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -610,7 +626,8 @@ private fun DiscoverGroupsPage(
                         item {
                             Text(
                                 text = "No groups found",
-                                modifier = Modifier.fillMaxWidth()
+                                modifier = Modifier
+                                    .fillMaxWidth()
                                     .padding(24.dp),
                                 style = MaterialTheme.typography.bodyMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -626,7 +643,8 @@ private fun DiscoverGroupsPage(
 
             FloatingActionButton(
                 onClick = { showCreateGroup = true },
-                modifier = Modifier.align(Alignment.BottomEnd)
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
                     .padding(16.dp)
             ) {
                 Text("+")
@@ -639,7 +657,8 @@ private fun DiscoverGroupsPage(
 private fun DiscoverGroupCard(
     group: Group
 ) {
-    Card(modifier = Modifier.fillMaxWidth()
+    Card(modifier = Modifier
+        .fillMaxWidth()
         .padding(horizontal = 16.dp, vertical = 8.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp),
@@ -687,13 +706,20 @@ private fun DiscoverGroupCard(
 
 @Composable
 private fun CreateGroupPage(
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    onCreateGroup: (Group) -> Unit
 ) {
     var groupName by rememberSaveable { mutableStateOf("") }
     var password by rememberSaveable { mutableStateOf("") }
     var selectedCategory by rememberSaveable { mutableStateOf("") }
     var selectedDailyGoal by rememberSaveable { mutableIntStateOf(0) }
     var selectedCapacity by rememberSaveable { mutableIntStateOf(0) }
+    var description by rememberSaveable { mutableStateOf("") }
+    var selectedJoinMethod by rememberSaveable { mutableStateOf("Join now") }
+    var groupNickname by rememberSaveable { mutableStateOf("") }
+
+    // 1 - group details, 2 - join method, 3 - group profile
+    var currentStep by rememberSaveable { mutableIntStateOf(1) }
 
     val categories = listOf(
         "Secondary", "JC Year 1", "JC Year 2", "Poly & ITE"
@@ -703,85 +729,293 @@ private fun CreateGroupPage(
 
     Column(modifier = Modifier.fillMaxSize()
     ) {
-        Box(modifier = Modifier.fillMaxWidth()
+        Box(modifier = Modifier
+            .fillMaxWidth()
             .padding(16.dp)
         ) {
-            IconButton(onClick = onBack,
+            IconButton(onClick = {
+                if (currentStep > 1) {
+                    currentStep--
+                } else {
+                    onBack()
+                }
+            },
                 modifier = Modifier.align(Alignment.CenterStart)
             ) {
                 Text("<")
             }
             Text(
-                text = "Create group",
+                text = if (currentStep > 1) {
+                    ""
+                } else {
+                    "Create group"
+                },
                 modifier = Modifier.align(Alignment.Center)
             )
         }
 
-        Column(modifier = Modifier.fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 12.dp)
-        ) {
-            Surface(modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp),
-                color = MaterialTheme.colorScheme.surface
-            ) {
-                Column {
-                    TextField(
-                        value = groupName,
-                        onValueChange = { groupName = it },
-                        modifier = Modifier.fillMaxWidth(),
-                        placeholder = {
-                            Text("Enter group name")
-                        },
-                        singleLine = true
-                    )
-                    HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
-                    TextField(
-                        value = password,
-                        onValueChange = { password = it },
-                        modifier = Modifier.fillMaxWidth(),
-                        placeholder = {
-                            Text("Password (optional)")
-                        },
-                        singleLine = true
+        when (currentStep) {
+            1 -> {
+                Column(modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    Surface(modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        color = MaterialTheme.colorScheme.surface
+                    ) {
+                        Column {
+                            TextField(
+                                value = groupName,
+                                onValueChange = { groupName = it },
+                                modifier = Modifier.fillMaxWidth(),
+                                placeholder = {
+                                    Text("Enter group name")
+                                },
+                                singleLine = true
+                            )
+                            HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
+                            TextField(
+                                value = password,
+                                onValueChange = { password = it },
+                                modifier = Modifier.fillMaxWidth(),
+                                placeholder = {
+                                    Text("Password (optional)")
+                                },
+                                singleLine = true
+                            )
+                        }
+                    }
+
+                    Surface(modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        color = MaterialTheme.colorScheme.surface
+                    ) {
+                        Column{
+                            CreateGroupDropdownRow(
+                                label = "Category",
+                                selectedValue = selectedCategory.ifEmpty {
+                                    "Select a category"
+                                },
+                                options = categories,
+                                onValueSelected = { selectedCategory = it }
+                            )
+                            HorizontalDivider(modifier = Modifier.padding(16.dp))
+                            CreateGroupDropdownRow(
+                                label = "Daily goal time",
+                                selectedValue = if (selectedDailyGoal == 0) {
+                                    "Daily goal time"
+                                } else {
+                                    "$selectedDailyGoal hours"
+                                },
+                                options = dailyGoals.map { "$it hours per day" },
+                                onValueSelected = { selected ->
+                                    // substring extracts numeric parts of values
+                                    selectedDailyGoal = selected.substringBefore(" ").toInt()
+                                }
+                            )
+                            HorizontalDivider(modifier = Modifier.padding(16.dp))
+                            CreateGroupDropdownRow(
+                                label = "Capacity",
+                                selectedValue = "$selectedCapacity people",
+                                options = capacity.map { "$it people" },
+                                onValueSelected = { selected ->
+                                    selectedCapacity = selected.substringBefore(" ").toInt()
+                                }
+                            )
+                        }
+                    }
+
+                    Surface(modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        color = MaterialTheme.colorScheme.surface
+                    ) {
+                        TextField(
+                            value = description,
+                            onValueChange = { description = it },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .heightIn(min = 120.dp),
+                            placeholder = {
+                                Text("Description")
+                            }
+                        )
+                    }
+                }
+                // next button
+                Button(
+                    onClick = {
+                        currentStep = 2
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    enabled = groupName.isNotBlank() &&
+                            selectedCategory.isNotBlank() &&
+                            selectedDailyGoal > 0 &&
+                            selectedCapacity > 0
+                ) {
+                    Text(
+                        text = "Next 1/3",
+                        style = MaterialTheme.typography.labelLarge
                     )
                 }
             }
+            2 -> {
+                Column(modifier = Modifier.fillMaxWidth()
+                    .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    Text(
+                        text = "Select a join method",
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        color = MaterialTheme.colorScheme.surface
+                    ) {
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Card(modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(12.dp)
+                            ) {
+                                Row(modifier = Modifier.clickable {
+                                    selectedJoinMethod = "Join now"
+                                }
+                                    .padding(16.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)
+                                    ) {
+                                        Text(
+                                            text = "Join now",
+                                            style = MaterialTheme.typography.bodyLarge
+                                        )
+                                        Text(
+                                            text = "Anyone can join",
+                                            style = MaterialTheme.typography.bodySmall
+                                        )
+                                    }
+                                    RadioButton(
+                                        selected = selectedJoinMethod == "Join now",
+                                        onClick = {
+                                            selectedJoinMethod = "Join now"
+                                        }
+                                    )
+                                }
+                            }
+                            Card(modifier = Modifier.fillMaxWidth(),
+                                shape = RoundedCornerShape(12.dp)
+                            ) {
+                                Row(modifier = Modifier.clickable {
+                                    selectedJoinMethod = "Join after approval"
+                                }
+                                    .padding(16.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)
+                                    ) {
+                                        Text(
+                                            text = "Join after approval",
+                                            style = MaterialTheme.typography.bodyLarge
+                                        )
+                                        Text(
+                                            text = "You need approval from the group leader to join",
+                                            style = MaterialTheme.typography.bodySmall
+                                        )
+                                    }
+                                    RadioButton(
+                                        selected = selectedJoinMethod == "Join after approval",
+                                        onClick = {
+                                            selectedJoinMethod = "Join after approval"
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+                Spacer(modifier = Modifier.weight(1f))
+                Button(
+                    onClick = {
+                        currentStep = 3
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 12.dp)
+                ) {
+                    Text("Next 2/3")
+                }
+            }
+            3 -> {
+                Column(modifier = Modifier.fillMaxWidth()
+                    .weight(1f)
+                    .verticalScroll(rememberScrollState())
+                    .padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    Text(
+                        text = "Group Profile Settings",
+                        style = MaterialTheme.typography.titleMedium
+                    )
+                    Surface(modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        color = MaterialTheme.colorScheme.surface
+                    ) {
+                        TextField(
+                            value = groupNickname,
+                            onValueChange = { groupNickname = it },
+                            modifier = Modifier.fillMaxWidth(),
+                            placeholder = {
+                                // take from username
+                                Text("Enter group nickname")
+                            },
+                            singleLine = true
+                        )
+                    }
 
-            Surface(modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp),
-                color = MaterialTheme.colorScheme.surface
-            ) {
-                Column{
-                    CreateGroupDropdownRow(
-                        label = "Category",
-                        selectedValue = selectedCategory.ifEmpty {
-                            "Select a category"
-                        },
-                        options = categories,
-                        onValueSelected = { selectedCategory = it }
+                    Text(
+                        text = "Study icon",
+                        style = MaterialTheme.typography.bodyMedium
                     )
-                    HorizontalDivider(modifier = Modifier.padding(16.dp))
-                    CreateGroupDropdownRow(
-                        label = "Daily goal time",
-                        selectedValue = if (selectedDailyGoal == 0) {
-                            "Daily goal time"
-                        } else {
-                            "$selectedDailyGoal hours"
-                        },
-                        options = dailyGoals.map { "$it hours per day" },
-                        onValueSelected = { selected ->
-                            // substring extracts numeric parts of values
-                            selectedDailyGoal = selected.substringBefore(" ").toInt()
+
+                    // placeholder box for icon
+                    Surface(modifier = Modifier.size(80.dp),
+                        shape = RoundedCornerShape(12.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant
+                    ) {
+                        Box(contentAlignment = Alignment.Center
+                        ) {
+                            Text("Person")
                         }
-                    )
-                    HorizontalDivider(modifier = Modifier.padding(16.dp))
-                    CreateGroupDropdownRow(
-                        label = "Capacity",
-                        selectedValue = "$selectedCapacity people",
-                        options = capacity.map { "$it people" },
-                        onValueSelected = { selected ->
-                            selectedCapacity = selected.substringBefore(" ").toInt()
-                        }
+                    }
+                }
+                Button(
+                    onClick = {
+                        val newGroup = Group(
+                            groupID = java.util.UUID.randomUUID().toString(),
+                            groupName = groupName.trim(),
+                            yearOfStudy = selectedCategory,
+                            memberCount = 1,
+                            capacity = selectedCapacity,
+                            ownerName = groupNickname.trim(),
+                            privacyStatus = if (password.isNotBlank()) "Private" else "Public",
+                            dailyGoalTime = selectedDailyGoal * 3600L,
+                            description = description.trim()
+                        )
+                        onCreateGroup(newGroup)
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    enabled = groupNickname.isNotBlank()
+                ) {
+                    Text(
+                        text = "Done",
+                        style = MaterialTheme.typography.labelLarge
                     )
                 }
             }
@@ -800,7 +1034,8 @@ private fun CreateGroupDropdownRow(
 
     Box(modifier = Modifier.fillMaxWidth()
     ) {
-        Row(modifier = Modifier.fillMaxWidth()
+        Row(modifier = Modifier
+            .fillMaxWidth()
             .clickable { expanded = true }
             .padding(16.dp),
             verticalAlignment = Alignment.CenterVertically

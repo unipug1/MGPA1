@@ -130,4 +130,8 @@ class GroupViewModel : ViewModel() {
 
         _messages.value += newMessage
     }
+
+    fun createGroup(group: Group) {
+        _groups.value += group
+    }
 }
