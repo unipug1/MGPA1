@@ -19,6 +19,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.outlined.ChangeHistory
@@ -76,15 +77,20 @@ import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.minutes
 import kotlin.time.ExperimentalTime
 import androidx.compose.runtime.saveable.Saver
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.window.PopupProperties
 import com.nyp.scaffoldingapp.ui.KaiserClasses.Routine
+import java.time.temporal.TemporalAdjusters
+import kotlin.time.DurationUnit
 
 //@Composable
 
 
 
 @Composable
-fun TasksDisplay(subjects: ToDoSubjects, modifier: Modifier,
+fun TasksDisplay(subjects: ToDoSubjects,
+                 date : LocalDate,
+                 modifier: Modifier,
                  viewModel : SubjectViewModel,
                  onEditSubject: (Subject)->Unit,
                  onDeleteSubject: (Subject)->Unit,
@@ -109,7 +115,7 @@ fun TasksDisplay(subjects: ToDoSubjects, modifier: Modifier,
             }
 
             items(subject.tasks, key = {it.id}) { task ->
-               if (task.routine.OnDay(LocalDate.now())) {
+               if (task.routine.OnDay(date)) {
                     Row(
                         modifier = Modifier
                             .padding(5.dp)
@@ -313,7 +319,14 @@ fun DisplayTask(task : Task,
 
         Text(task.name, color = color, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
         Spacer(Modifier.weight(1f))
-        //Text(DateRangeString(task.time?.se), color = color, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+        if (task.duration != null){
+            val dur : Duration = task.duration!!
+            Text(DateRangeString(task.routine.startDate.atTime(task.time?.toLocalTime()),
+            task.routine.endDate?.atTime(task.time?.toLocalTime()?.plusSeconds(dur.toLong(
+            DurationUnit.SECONDS))), null), color = color, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))}
+        else {
+            Text(DateRangeString(task.routine.startDate?.atTime(0,0), task.routine.endDate?.atTime(0,0),"yyyy-MM-dd"))
+        }
         Row() {
             task.time?.let{(DateTimeFormat(it))}
             Spacer(Modifier.width(2.dp))
@@ -406,14 +419,20 @@ fun <T>WheelPicker(
             .collect{ onSelect(items[centerIndex].obj, centerIndex)}
     }
 
-    Box(modifier.width(itemSize.width.dp).height(height.dp), contentAlignment = Alignment.Center){
-        Box(Modifier.fillMaxWidth().height(itemSize.height.dp).clip(RoundedCornerShape(12.dp)))
+    Box(modifier
+        .width(itemSize.width.dp)
+        .height(height.dp), contentAlignment = Alignment.Center){
+        Box(Modifier
+            .fillMaxWidth()
+            .height(itemSize.height.dp)
+            .clip(RoundedCornerShape(12.dp)))
         var columnCenter = 0
         LazyColumn(            state = listState,
             flingBehavior = snapFling,
             contentPadding = PaddingValues(vertical = (height * 0.5f - itemSize.height * 0.5f).dp),
-            modifier = Modifier.fillMaxSize()
-                .onGloballyPositioned{columnCenter = it.size.height / 2}) {
+            modifier = Modifier
+                .fillMaxSize()
+                .onGloballyPositioned { columnCenter = it.size.height / 2 }) {
             itemsIndexed(items) { index, item ->
                 var distance by remember { mutableStateOf(1f) }
                 var cosCurve by remember { mutableStateOf(0.0)}
@@ -423,11 +442,14 @@ fun <T>WheelPicker(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(itemSize.height.dp)
-                        .onGloballyPositioned{
+                        .onGloballyPositioned {
                             var btnCenter = it.positionInParent().y
                             btnCenter += it.size.height / 2
                             distance = abs(columnCenter - btnCenter)
-                            cosCurve = abs(cos((distance) / (itemSize.height * visibleItems) * 0.25f * (2 * PI) + PI)).coerceAtLeast(0.25)
+                            cosCurve =
+                                abs(cos((distance) / (itemSize.height * visibleItems) * 0.25f * (2 * PI) + PI)).coerceAtLeast(
+                                    0.25
+                                )
                         }
                         .alpha((cosCurve.toFloat()))
                 ) {
@@ -459,14 +481,21 @@ fun <T>WheelPicker(
     textSizeMult : Float = 1.5f,
     modifier: Modifier = Modifier
 ){
-    var initialIndex = 0
-    items.forEachIndexed {index, item ->
-        if (initialObj == item.obj)
-            initialIndex = index
+    val list = remember {mutableStateOf(items)}
+
+    val initialIndex = remember(list.value, initialObj) {
+        list.value.indexOfFirst { it.obj == initialObj }.coerceAtLeast(0)
     }
 
     val listState = rememberLazyListState(initialFirstVisibleItemIndex = initialIndex)
     val snapFling = rememberSnapFlingBehavior(lazyListState = listState)
+
+
+
+    var wasSpinning by remember { mutableStateOf(false) }
+
+
+
     val height = itemSize.height * visibleItems
 
 
@@ -482,24 +511,45 @@ fun <T>WheelPicker(
                 ?.index ?: initialIndex
         }
     }
-    onSelect(items[centerIndex].obj, centerIndex)
+
+
 
     LaunchedEffect(listState) {
         snapshotFlow{ listState.isScrollInProgress }
             //filter it just means it calls when snapshotFlow is true
-            .filter { !it }
-            .collect{ onSelect(items[centerIndex].obj, centerIndex)}
+            .collect{scrolling ->
+                if (!scrolling){
+                    if (wasSpinning) {
+                        onSelect(list.value[centerIndex].obj, centerIndex)
+
+                        wasSpinning = false
+                        println("centerIndex: $centerIndex ")
+                    }
+                }
+                else
+                    wasSpinning = true
+            }
     }
 
-    Box(modifier.width(itemSize.width.dp).height(height.dp), contentAlignment = Alignment.Center){
-        Box(Modifier.fillMaxWidth().height(itemSize.height.dp).clip(RoundedCornerShape(12.dp)))
+   // onSelect(items[centerIndex].obj, centerIndex)
+    println("Select ${centerIndex.toString()}")
+
+
+    Box(modifier
+        .width(itemSize.width.dp)
+        .height(height.dp), contentAlignment = Alignment.Center){
+        Box(Modifier
+            .fillMaxWidth()
+            .height(itemSize.height.dp)
+            .clip(RoundedCornerShape(12.dp)))
         var columnCenter = 0
         LazyColumn(            state = listState,
             flingBehavior = snapFling,
             contentPadding = PaddingValues(vertical = (height * 0.5f - itemSize.height * 0.5f).dp),
-            modifier = Modifier.fillMaxSize()
-                .onGloballyPositioned{columnCenter = it.size.height / 2}) {
-            itemsIndexed(items) { index, item ->
+            modifier = Modifier
+                .fillMaxSize()
+                .onGloballyPositioned { columnCenter = it.size.height / 2 }) {
+            itemsIndexed(list.value) { index, item ->
                 var distance by remember { mutableStateOf(1f) }
                 var cosCurve by remember { mutableStateOf(0.0)}
                 Button(
@@ -508,11 +558,14 @@ fun <T>WheelPicker(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(itemSize.height.dp)
-                        .onGloballyPositioned{
+                        .onGloballyPositioned {
                             var btnCenter = it.positionInParent().y
                             btnCenter += it.size.height / 2
                             distance = abs(columnCenter - btnCenter)
-                            cosCurve = abs(cos((distance) / (itemSize.height * visibleItems) * 0.25f * (2 * PI) + PI)).coerceAtLeast(0.25)
+                            cosCurve =
+                                abs(cos((distance) / (itemSize.height * visibleItems) * 0.25f * (2 * PI) + PI)).coerceAtLeast(
+                                    0.25
+                                )
                         }
                         .alpha((cosCurve.toFloat()))
                 ) {
@@ -565,12 +618,18 @@ fun DatePickerDocked(onSelect : (LocalDateTime)-> Unit){
                     )
                 }
             },
-            modifier = Modifier.fillMaxWidth().height(64.dp)
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(64.dp)
         )
     }
     if (showDatePicker){
         Popup(onDismissRequest = {showDatePicker = false}, alignment = Alignment.TopStart, properties = PopupProperties(focusable = true)){
-            Box(modifier = Modifier.fillMaxWidth().offset(y = 64.dp).background(MaterialTheme.colorScheme.surface).padding(16.dp)){
+            Box(modifier = Modifier
+                .fillMaxWidth()
+                .offset(y = 64.dp)
+                .background(MaterialTheme.colorScheme.surface)
+                .padding(16.dp)){
 
                 DatePicker(state = datePickerState, showModeToggle = false)
                 val selectedDate: Long? = datePickerState.selectedDateMillis
@@ -1345,7 +1404,7 @@ fun SubjectDialog(
                             else {
                                 subjectViewModel.AddSubject(
                                     name,
-                                    if (selectedColor != null) selectedColor else Color.White
+                                    selectedColor?:Color.White
                                 )
                             }
                             onDismiss()
@@ -1394,6 +1453,8 @@ fun ToDoPage(viewModel: SubjectViewModel,modifier: Modifier) {
 
     var addSubjScreen by remember { mutableStateOf(false)}
 
+    var selectedDate by remember { mutableStateOf(LocalDate.now()) }
+
     var addTaskScreen by remember { mutableStateOf<Subject?>(null) }
     var editTaskScreen by remember { mutableStateOf<Task?>(null) }
     var editSubjectScreen by remember { mutableStateOf<Subject?>(null) }
@@ -1410,6 +1471,9 @@ fun ToDoPage(viewModel: SubjectViewModel,modifier: Modifier) {
 
     var finishedEditTask by remember { mutableStateOf(false)}
 
+    var displayedStartWk by remember { mutableStateOf(LocalDate.now().with(TemporalAdjusters.previousOrSame(
+        DayOfWeek.MONDAY))) }
+
     //basically a coroutine
     LaunchedEffect(Unit) {
         while (true) {
@@ -1425,113 +1489,184 @@ fun ToDoPage(viewModel: SubjectViewModel,modifier: Modifier) {
             delay(1000L.milliseconds)
         }
     }
-    Box(){
-        Column(Modifier.fillMaxWidth().fillMaxHeight()) {
+    Scaffold(
+        topBar = {
+            Column(Modifier.fillMaxWidth()) {
+                Row() {
+                    IconButton(
+                        onClick = { displayedStartWk = displayedStartWk.minusDays(7) }
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
+                            contentDescription = "Back",
+                            tint = Color.Black
+                        )
+                    }
+                    Spacer(Modifier.weight(1f))
+                    Text(TimeFormat(selectedDate.atTime(0,0), "EEE dd MMM yyyy"))
+                    Spacer(Modifier.weight(1f))
+                    IconButton(
+                        onClick = { displayedStartWk = displayedStartWk.plusDays(7) }
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                            contentDescription = "Back",
+                            tint = Color.Black
+                        )
+                    }
+                }
+                Row(Modifier.fillMaxWidth()) {
+                    for (day in DayOfWeek.entries) {
+                        Text(day.name[0].toString(), textAlign = TextAlign.Center, modifier = Modifier.weight(1f))
+                    }
+                }
+                Row(Modifier.fillMaxWidth()){
+                    for (day in DayOfWeek.entries) {
+                        val currDay = displayedStartWk.plusDays(day.value.toLong())
+                        Button(colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent, contentColor = Color.Black),
+                            border = BorderStroke(width = 3.dp, color = Color.Black),
+                            onClick = {selectedDate = currDay},
+                            modifier = Modifier.weight(1f).height(60.dp),
+                            shape = RoundedCornerShape(15.dp),
+                            contentPadding = PaddingValues(2.dp)) {
+                            Column() {
+                                Text(TimeFormat(currDay.atTime(0, 0), "MMM"))
+                                Text(TimeFormat(currDay.atTime(0, 0), "dd"))
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    ) { paddingValues ->
+        Box(Modifier.padding(paddingValues)) {
+            Column(Modifier
+                .fillMaxWidth()
+                .fillMaxHeight()) {
 
-            Column(
-                Modifier
-                    .fillMaxWidth()
-                    .background(Color.Gray)
-                    .border(color = Color(0xFF645f6b), width = 2.dp),
-                verticalArrangement = Arrangement.Center,
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
+                Column(
+                    Modifier
+                        .fillMaxWidth()
+                        .background(Color.Gray)
+                        .border(color = Color(0xFF645f6b), width = 2.dp),
+                    verticalArrangement = Arrangement.Center,
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Spacer(Modifier.height(5.dp))
+
+                    val dateFormatter = DateTimeFormatter.ofPattern("dd MMM yyyy")
+                    val timeFormatter = DateTimeFormatter.ofPattern("HH:mm:ss")
+                    Text(
+                        dateTime.format(dateFormatter),
+                        style = MaterialTheme.typography.headlineLarge
+                    )
+                    Spacer(Modifier.height(5.dp))
+                    Text(
+                        dateTime.format(timeFormatter),
+                        style = MaterialTheme.typography.headlineMedium
+                    )
+                }
+                Spacer(Modifier.height(5.dp))
+                Row() {
+                    Spacer(Modifier.width(15.dp))
+                    Button(
+                        onClick = { addSubjScreen = true },
+                        modifier = Modifier
+                            .size(30.dp),
+                        shape = RoundedCornerShape(3.dp),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color.Transparent,
+                            contentColor = Color.Black
+                        ),
+                        border = BorderStroke(color = Color.Black, width = 2.dp),
+                        contentPadding = PaddingValues(0.dp)
+                    ) { Text(text = "+", fontSize = 24.sp) }
+                    Spacer(Modifier.weight(1f))
+                }
                 Spacer(Modifier.height(5.dp))
 
-                val dateFormatter = DateTimeFormatter.ofPattern("dd MMM yyyy")
-                val timeFormatter = DateTimeFormatter.ofPattern("HH:mm:ss")
-                Text(
-                    dateTime.format(dateFormatter),
-                    style = MaterialTheme.typography.headlineLarge
-                )
-                Spacer(Modifier.height(5.dp))
-                Text(
-                    dateTime.format(timeFormatter),
-                    style = MaterialTheme.typography.headlineMedium
-                )
-            }
-            Spacer(Modifier.height(5.dp))
-            Row() {
-                Spacer(Modifier.width(15.dp))
-                Button(
-                    onClick = { addSubjScreen = true },
-                    modifier = Modifier
-                        .size(30.dp),
-                    shape = RoundedCornerShape(3.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color.Transparent,
-                        contentColor = Color.Black
-                    ),
-                    border = BorderStroke(color = Color.Black, width = 2.dp),
-                    contentPadding = PaddingValues(0.dp)
-                ) { Text(text = "+", fontSize = 24.sp) }
-                Spacer(Modifier.weight(1f))
-            }
-            Spacer(Modifier.height(5.dp))
+                TasksDisplay(
+                    subjects = state,
+                    selectedDate,
+                    modifier,
+                    viewModel,
+                    onEditTask = { task: Task -> editTaskScreen = task },
+                    onAddTask = { subj: Subject ->
+                        addTaskScreen = subj
+                        newTask = GetNewTask()
+                    },
+                    onEditSubject = { subj: Subject -> editSubjectScreen = subj },
+                    onDeleteSubject = { subj: Subject -> deleteSubjScreen = subj },
+                    onDeleteTask = { task: Task -> deleteTaskScreen = task },
+                    taskInterjection = { subj: Subject ->
+                        Row(Modifier.fillMaxWidth()) {
+                            if (subj.id == addTaskScreen?.id) {
+                                AddTaskRow(onFinished = {
+                                    newTask.name = it.name
+                                    finishedEditTask = true
+                                }, newTask)
 
-            TasksDisplay(subjects = state, modifier,
-                viewModel,
-                onEditTask = {task: Task -> editTaskScreen = task},
-                onAddTask = {subj : Subject -> addTaskScreen = subj
-                newTask = GetNewTask()},
-                onEditSubject = { subj: Subject -> editSubjectScreen = subj },
-                onDeleteSubject = { subj: Subject -> deleteSubjScreen = subj},
-                onDeleteTask = { task : Task -> deleteTaskScreen = task},
-                taskInterjection = {subj : Subject ->
-                    Row(Modifier.fillMaxWidth()) {
-                        if (subj.id == addTaskScreen?.id) {
-                            AddTaskRow(onFinished = {
-                                newTask.name = it.name
-                                finishedEditTask = true
-                            }, newTask)
+                            }
 
                         }
+                    })
+            }
+            if (addSubjScreen) {
+                SubjectDialog(
+                    onDismiss = { addSubjScreen = false },
+                    subjectViewModel = viewModel
+                )
+            }
+            editSubjectScreen?.let {
+                SubjectDialog(
+                    onDismiss = { editSubjectScreen = null },
+                    subjectViewModel = viewModel,
+                    subject = it
+                )
+            }
+            addTaskScreen?.let { subj ->
+                EditTask(
+                    onDismiss = { task: Task, subject: Subject ->
+                        viewModel.AddTask(task = task, subject = subject)
+                        addTaskScreen = null
 
-                    }
-                })
-        }
-        if (addSubjScreen) {
-            SubjectDialog(
-                onDismiss = { addSubjScreen = false },
-                subjectViewModel = viewModel
-            )
-        }
-        editSubjectScreen?.let{SubjectDialog(
-            onDismiss = { editSubjectScreen = null },
-            subjectViewModel = viewModel,
-            subject = it
-        )}
-        addTaskScreen?.let{ subj -> EditTask(onDismiss = { task: Task, subject: Subject ->
-            viewModel.AddTask(task = task, subject = subject)
-            addTaskScreen = null
+                        finishedEditTask = false
 
-            finishedEditTask = false
+                    },
 
-        },
+                    modifier = Modifier
+                        .height(60.dp)
+                        .align(Alignment.BottomCenter),
+                    subject = subj,
+                    viewModel = viewModel,
+                    task = newTask,
+                    finished = finishedEditTask
+                )
 
-            modifier = Modifier.height(60.dp).align(Alignment.BottomCenter),
-            subject = subj,
-            viewModel = viewModel,
-            task = newTask,
-            finished = finishedEditTask
-            )
-
-        }
-        deleteTaskScreen?.let{DeleteTaskDialog(task = it,
-            onDismiss = { deleteTaskScreen = null},
-            viewModel)}
-        editTaskScreen?.let{
-            EditTaskDialog(task = it,
-                onDismiss = { editTaskScreen = null },
-                viewModel)
-        }
-        deleteSubjScreen?.let{
-            DeleteSubjDialog(it,
-                onDismiss = {deleteSubjScreen = null },
-                viewModel)
+            }
+            deleteTaskScreen?.let {
+                DeleteTaskDialog(
+                    task = it,
+                    onDismiss = { deleteTaskScreen = null },
+                    viewModel
+                )
+            }
+            editTaskScreen?.let {
+                EditTaskDialog(
+                    task = it,
+                    onDismiss = { editTaskScreen = null },
+                    viewModel
+                )
+            }
+            deleteSubjScreen?.let {
+                DeleteSubjDialog(
+                    it,
+                    onDismiss = { deleteSubjScreen = null },
+                    viewModel
+                )
+            }
         }
     }
-
 
 }
 

@@ -21,6 +21,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -35,6 +36,7 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.RectangleShape
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.input.pointer.stylusHoverIcon
 import androidx.compose.ui.text.style.LineHeightStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -44,6 +46,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.compose.ui.window.Popup
+import androidx.compose.ui.window.PopupProperties
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import java.time.LocalTime
@@ -115,7 +118,6 @@ fun CalendarEventDisplay(
     var dayNum = 0
 
     val offset = month.atDay(1).dayOfWeek
-    println(offset.name)
     val totalDays = month.lengthOfMonth()
     val dayEvents = remember(month, events){
         val returnEvents = HashMap<LocalDate, MutableList<Event>>()
@@ -146,7 +148,7 @@ fun CalendarEventDisplay(
         for (week in 1..numWeeks) {
             Row(Modifier.fillMaxWidth().weight(1f)) {
                 for (day in DayOfWeek.entries) {
-                    val dayNum = (week) * 7 + day.value - offset.value + 1
+                    val dayNum = (week - 1) * 7 + day.value - offset.value + 1
 
 
                     if (dayNum in 1..totalDays) {
@@ -547,9 +549,51 @@ fun CalendarPage(viewModel: EventViewModel, modifier: Modifier){
     var showEventsScreen by remember { mutableStateOf(false) }
     var addEventsScreen by remember { mutableStateOf(false) }
 
+    var monthDropdown by remember {mutableStateOf(false)}
+
+    val monthOffset = 36
+
+    val monthList = remember(displayedMonth){
+        val months = mutableListOf<StringObjPair<YearMonth>>()
+        var currMonth = displayedMonth.minusMonths(monthOffset.toLong())
+        for (i in 1..monthOffset * 2){
+            currMonth = currMonth.plusMonths(1)
+            months.add(StringObjPair(currMonth.toString(), currMonth))
+        }
+        months
+
+    }
+
    // var selectedDate by remember { mutableStateOf(LocalDate.now()) }
 
     Scaffold(
+        topBar = {
+            Row(Modifier.fillMaxWidth()){
+                Button(onClick = {monthDropdown = !monthDropdown}){
+                    Text(displayedMonth.toString(), style = MaterialTheme.typography.headlineMedium)
+
+                }
+                Spacer(Modifier.weight(1f))
+                IconButton(
+                    onClick = { displayedMonth = displayedMonth.minusMonths(1) }
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
+                        contentDescription = "Back",
+                        tint = Color.Black
+                    )
+                }
+                IconButton(
+                    onClick = { displayedMonth = displayedMonth.plusMonths(1) }
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                        contentDescription = "Back",
+                        tint = Color.Black
+                    )
+                }
+            }
+        },
         bottomBar = {Row(Modifier.fillMaxWidth()) {
             Spacer(Modifier.weight(1f))
             Button(onClick = {
@@ -561,6 +605,28 @@ fun CalendarPage(viewModel: EventViewModel, modifier: Modifier){
         }}
     ) { paddingValues ->
         Column(Modifier.padding(paddingValues)) {
+            if (monthDropdown){
+
+                Popup(properties = PopupProperties()) {
+                    Surface(
+                        color = Color.White
+                    ) {
+                        WheelPicker(
+                            monthList,
+                            { month: YearMonth, index: Int ->
+                                displayedMonth = month
+
+                            },
+                            { month: YearMonth, index: Int ->
+                                displayedMonth = month
+                                monthDropdown = false
+                            },
+                            Size(144f, 64f),
+                            initialObj = displayedMonth
+                        )
+                    }
+                }
+            }
             OutlinedTextField(
                 value = pickedDate, readOnly = true, onValueChange = {})
 
@@ -574,6 +640,7 @@ fun CalendarPage(viewModel: EventViewModel, modifier: Modifier){
             Spacer(Modifier.height(15.dp))
             HorizontalDivider(Modifier.fillMaxWidth())
             Spacer(Modifier.height(15.dp))
+
 
 
         }

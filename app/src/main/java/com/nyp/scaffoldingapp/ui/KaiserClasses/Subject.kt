@@ -102,9 +102,9 @@ class Routine(
     fun OnDay(dateTime : LocalDate): Boolean{
         if (routineType == RoutineType.NONE)
             return true
-        endDate?.let{if ((dateTime.toEpochDay() - it.toEpochDay()) < 0 ) return false}
+        endDate?.let{if (dateTime.isAfter(it)) return false}
         if (routineType == RoutineType.WEEKLY) {
-            if (!(dateTime.dayOfWeek in days))
+            if (dateTime.dayOfWeek !in days)
                 return false
             val monOfRoutineWk = startDate.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
             val monOfDate = dateTime.with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY))
