@@ -32,3 +32,13 @@ data class ChatMessage(
     val timestamp: Long,
     val isMine: Boolean
 )
+
+data class GroupStudyRecord(
+    val groupID: String,
+    val memberID: String,
+    val nickname: String,
+    val yearOfStudy: String,
+    val date: String,
+    val studyTimeSeconds: Long,
+    val dailyGoalSeconds: Long
+)

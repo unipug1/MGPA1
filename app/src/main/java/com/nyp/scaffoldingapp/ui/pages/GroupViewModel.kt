@@ -15,7 +15,8 @@ class GroupViewModel : ViewModel() {
                 memberCount = 3,
                 capacity = 3,
                 ownerName = "_1ucky",
-                privacyStatus = "Private"
+                privacyStatus = "Private",
+                dailyGoalTime = 7200L
             ),
             Group(
                 groupID = "group2",
@@ -106,11 +107,35 @@ class GroupViewModel : ViewModel() {
         )
     )
 
+    private val _studyRecords = MutableStateFlow(
+        listOf(
+            GroupStudyRecord(
+                groupID = "group1",
+                memberID = "member1",
+                nickname = "sze:(",
+                yearOfStudy = "JC Year 2",
+                date = "2026-11-16",
+                studyTimeSeconds = 588L,
+                dailyGoalSeconds = 10800L
+            ),
+            GroupStudyRecord(
+                groupID = "group1",
+                memberID = "member1",
+                nickname = "sze:(",
+                yearOfStudy = "JC Year 2",
+                date = "2026-11-17",
+                studyTimeSeconds = 7200L,
+                dailyGoalSeconds = 10800L
+            ),
+        )
+    )
+
     // read only:
     val groups = _groups.asStateFlow()
     val discoverGroups = _discoverGroups.asStateFlow()
     val notifications = _notifications.asStateFlow()
     val messages = _messages.asStateFlow()
+    val studyRecords = _studyRecords.asStateFlow()
 
     fun clearNotifications() {
         _notifications.value = emptyList()
@@ -133,5 +158,9 @@ class GroupViewModel : ViewModel() {
 
     fun createGroup(group: Group) {
         _groups.value += group
+    }
+
+    fun addStudyRecord(studyRecord: GroupStudyRecord) {
+        _studyRecords.value += studyRecord
     }
 }

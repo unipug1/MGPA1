@@ -35,6 +35,7 @@ import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
 import androidx.compose.foundation.clickable
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.TextField
 import androidx.compose.ui.text.style.TextAlign
@@ -51,12 +52,23 @@ import androidx.compose.runtime.mutableIntStateOf
 import java.util.Locale
 import java.text.SimpleDateFormat
 import java.util.Date
+import java.time.LocalDate
 import androidx.compose.material3.FloatingActionButton
 //import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.RadioButton
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.NavigationBar
+import androidx.compose.material3.NavigationBarItem
+import java.time.DayOfWeek
+import java.time.format.DateTimeFormatter
+import java.time.temporal.TemporalAdjusters
 
 @Composable
 fun GroupPage(
@@ -67,9 +79,14 @@ fun GroupPage(
     val discoverGroups by viewModel.discoverGroups.collectAsState()
     val notifications by viewModel.notifications.collectAsState()
     val messages by viewModel.messages.collectAsState()
+    val studyRecords by viewModel.studyRecords.collectAsState()
 
+    // opens group chat
     var selectedGroupID by rememberSaveable { mutableStateOf<String?>(null) }
     val selectedGroup = groups.find {it.groupID == selectedGroupID }
+    // open group home
+    var selectedHomeGroupID by rememberSaveable { mutableStateOf<String?>(null) }
+    val selectedHomeGroup = groups.firstOrNull { it.groupID == selectedHomeGroupID }
 
     // test value - to be replaced with user's value
     var userYearOfStudy by rememberSaveable { mutableStateOf("Poly & ITE") }
@@ -77,11 +94,21 @@ fun GroupPage(
     var showNotifications by rememberSaveable { mutableStateOf(false) }
     var showDiscoverGroups by rememberSaveable { mutableStateOf(false) }
 
-    BackHandler(enabled = selectedGroupID != null || showDiscoverGroups) {
-        if (selectedGroupID != null) {
-            selectedGroupID = null
-        } else {
-            showDiscoverGroups = false
+    BackHandler(
+        enabled = selectedGroupID != null ||
+                selectedHomeGroupID != null ||
+                showDiscoverGroups)
+    {
+        when {
+            selectedHomeGroupID != null -> {
+                selectedHomeGroupID = null
+            }
+            selectedGroupID != null -> {
+                selectedGroupID = null
+            }
+            showDiscoverGroups -> {
+                showDiscoverGroups = false
+            }
         }
     }
 
@@ -89,7 +116,16 @@ fun GroupPage(
         .fillMaxSize()
         .background(MaterialTheme.colorScheme.background)
     ) {
-        if (selectedGroup != null) {
+        if (selectedHomeGroup != null) {
+            GroupHomePage(
+                group = selectedHomeGroup,
+                studyRecords = studyRecords,
+                onBack = {
+                    selectedHomeGroupID = null
+                }
+            )
+        }
+        else if (selectedGroup != null) {
             GroupChatPage(
                 group = selectedGroup,
                 groupMessages = messages.filter {
@@ -109,6 +145,7 @@ fun GroupPage(
                 onCreateGroup = { newGroup ->
                     viewModel.createGroup(newGroup)
                     showDiscoverGroups = false
+                    selectedHomeGroupID = newGroup.groupID
                 }
             )
         }
@@ -143,6 +180,9 @@ fun GroupPage(
                 items(groups, key = {it.groupID}) { item ->
                     GroupRow(
                         group = item,
+                        onGroupClicked = { groupID ->
+                            selectedHomeGroupID = groupID
+                        },
                         onChatClicked = { groupID ->
                             showNotifications = false
                             selectedGroupID = groupID
@@ -228,15 +268,18 @@ fun GroupPage(
 @Composable
 private fun GroupRow(
     group: Group,
+    onGroupClicked: (String) -> Unit,
     onChatClicked: (String) -> Unit
 ) {
     Row(modifier = Modifier
         .fillMaxWidth()
+        .clickable {
+            onGroupClicked(group.groupID)
+        }
         .padding(horizontal = 20.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Column(modifier = Modifier
-            .weight(1f)
+        Column(modifier = Modifier.weight(1f)
         ) {
             Text(
                 text = group.groupName,
@@ -1078,6 +1121,418 @@ private fun CreateGroupDropdownRow(
     }
 }
 
+@Composable
+private fun GroupHomePage(
+    group: Group,
+    studyRecords: List<GroupStudyRecord>,
+    onBack: () -> Unit
+) {
+    var selectedTab by rememberSaveable { mutableStateOf("Home") }
+    Column(modifier = Modifier.fillMaxWidth()
+    ) {
+        Box(modifier = Modifier.fillMaxWidth()
+            .padding(16.dp)
+        ) {
+            IconButton(onClick = onBack,
+                modifier = Modifier.align(Alignment.CenterStart)
+            ) {
+                Text("<")
+            }
+            Text(
+                text = group.groupName,
+                modifier = Modifier.align(Alignment.Center),
+                style = MaterialTheme.typography.titleLarge
+            )
+            IconButton(onClick = {},
+                modifier = Modifier.align(Alignment.CenterEnd)
+            ) {
+                Text("⚙")
+            }
+        }
+        Column(modifier = Modifier.fillMaxWidth()
+            .weight(1f)
+            .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            when (selectedTab) {
+                "Home" -> {
+                    Surface(modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        color = MaterialTheme.colorScheme.surface
+                    ) {
+                        Column(modifier = Modifier.padding(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Row(modifier = Modifier.fillMaxWidth(),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = "Group description",
+                                    style = MaterialTheme.typography.titleMedium
+                                )
+                            }
+                            Text(
+                                text = group.description.ifBlank {
+                                    "No group description."
+                                },
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+                    }
+                    Column(modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Row(modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "Studying ",
+                                style = MaterialTheme.typography.titleMedium
+                            )
+                            Text(
+                                text = "${group.memberCount} members",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
+
+                        LazyVerticalGrid(columns = GridCells.Fixed(4),
+                            modifier = Modifier.fillMaxWidth()
+                                .heightIn(max = 300.dp),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            items(group.memberCount) {
+                                Surface(
+                                    modifier = Modifier.fillMaxWidth()
+                                        .aspectRatio(1f),
+                                    shape = RoundedCornerShape(12.dp),
+                                    color = MaterialTheme.colorScheme.surfaceVariant
+                                ) {
+                                    Box(contentAlignment = Alignment.Center
+                                    ) {
+                                        IconButton(
+                                            onClick = {}
+                                        ) {
+                                            Text("Person")
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                "Rankings" -> {
+                    GroupRankingsPage(
+                        group = group,
+                        studyRecords = studyRecords
+                    )
+                }
+                "Invite" -> {
+
+                }
+            }
+        }
+        GroupHomeNavigation(
+            selectedTab = selectedTab,
+            onTabSelected = { tab ->
+                selectedTab = tab
+            }
+        )
+    }
+}
+
+@Composable
+private fun GroupHomeNavigation(
+    selectedTab: String,
+    onTabSelected: (String) -> Unit
+) {
+    NavigationBar {
+        listOf(
+            "Home", "Rankings", "Invite"
+        ).forEach { tab ->
+            NavigationBarItem(
+                selected = selectedTab == tab,
+                onClick = {
+                    onTabSelected(tab)
+                },
+                icon = {
+
+                },
+                label = {
+                    Text(
+                        text = tab,
+                        style = MaterialTheme.typography.labelSmall
+                    )
+                }
+            )
+        }
+    }
+}
+
+@Composable
+private fun GroupRankingsPage(
+    group: Group,
+    studyRecords: List<GroupStudyRecord>
+) {
+    var selectedPeriod by rememberSaveable { mutableStateOf("Daily") }
+    var selectedDate by rememberSaveable { mutableStateOf(LocalDate.now().toString())}
+    var expanded by rememberSaveable { mutableStateOf(false) }
+
+    val date = LocalDate.parse(selectedDate)
+    val periodStart = when (selectedPeriod) {
+        "Weekly" -> date.with(
+            TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY)
+        )
+        "Monthly" -> date.withDayOfMonth(1)
+        else -> date
+    }
+    val periodEnd = when (selectedPeriod) {
+        "Weekly" -> periodStart.plusDays(6)
+        "Monthly" -> periodStart.plusMonths(1).minusDays(1)
+        else -> date
+    }
+    val filteredRecords = studyRecords.filter { record ->
+        val recordDate = LocalDate.parse(record.date)
+        record.groupID == group.groupID &&
+                !recordDate.isBefore(periodStart) &&
+                !recordDate.isAfter(periodEnd)
+    }
+    val rankedRecords = filteredRecords
+        .groupBy { it.memberID }
+        .map { (_, studyRecords ) ->
+            val member = studyRecords.first()
+
+            member.copy(
+                studyTimeSeconds = studyRecords.sumOf { it.studyTimeSeconds }
+            )
+        }.sortedByDescending { it.studyTimeSeconds }
+    val totalStudyTime = rankedRecords.sumOf { it.studyTimeSeconds }
+    val averageStudyTime = if (rankedRecords.isNotEmpty()) {
+        totalStudyTime / rankedRecords.size
+    } else { 0L }
+
+    Column(modifier = Modifier.fillMaxSize()
+        .padding(8.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        Text(
+            text = "Rankings",
+            style = MaterialTheme.typography.titleLarge
+        )
+        Surface(modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(12.dp),
+            color = MaterialTheme.colorScheme.surfaceVariant
+        ) {
+            Row(modifier = Modifier.padding(4.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                IconButton(onClick = {
+                    selectedDate = when (selectedPeriod) {
+                        "Weekly" -> date.minusWeeks(1)
+                        "Monthly" -> date.minusMonths(1)
+                        else -> date.minusDays(1)
+                    }.toString()
+                }) {
+                    Text("<")
+                }
+                Text(
+                    text = when (selectedPeriod) {
+                        "Weekly" -> {
+                            val start = date.with(
+                                TemporalAdjusters.previousOrSame(
+                                    DayOfWeek.MONDAY
+                                )
+                            )
+                            val end = start.plusDays(6)
+                            "${start.format(DateTimeFormatter.ofPattern("MMM d"))} - " +
+                                    end.format(DateTimeFormatter.ofPattern("MMM d"))
+                        }
+
+                        "Monthly" -> {
+                            date.format(DateTimeFormatter.ofPattern("MMM yyyy"))
+                        }
+                        else -> {
+                            date.format(DateTimeFormatter.ofPattern("MMM d"))
+                        }
+                    },
+                    style = MaterialTheme.typography.bodyMedium
+                )
+
+                IconButton(onClick = {
+                    selectedDate = when (selectedPeriod) {
+                        "Weekly" -> date.plusWeeks(1)
+                        "Monthly" -> date.plusMonths(1)
+                        else -> date.plusDays(1)
+                    }.toString()
+                }) {
+                    Text(">")
+                }
+                Spacer(modifier = Modifier.weight(1f))
+                Box {
+                    Row(modifier = Modifier
+                        .width(100.dp)
+                        .background(
+                            color = MaterialTheme.colorScheme.surfaceVariant,
+                            shape = RoundedCornerShape(8.dp)
+                        )
+                        .clickable { expanded = true }
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Text(
+                            text = selectedPeriod,
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Text(
+                            text = "v",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    DropdownMenu(expanded = expanded,
+                        onDismissRequest = { expanded = false}
+                    ) {
+                        listOf("Daily", "Weekly", "Monthly").forEach { option ->
+                            DropdownMenuItem(
+                                text = { Text(option) },
+                                onClick = {
+                                    selectedPeriod = option
+                                    expanded = false
+                                }
+                            )
+                        }
+                    }
+                }
+            }
+        }
+        Row(modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(24.dp)
+        ) {
+            Text(
+                text = "Total time ${formatStudyTime(totalStudyTime)}",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Text(
+                text = "Average time ${formatStudyTime(averageStudyTime)}",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        Row(modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = "My rank ",
+                modifier = Modifier.weight(1f),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Text(
+                text = "${group.dailyGoalTime / 3600}h",
+                style = MaterialTheme.typography.bodyMedium
+            )
+        }
+        LazyColumn {
+            if (rankedRecords.isEmpty()) {
+                item {
+                    Text(
+                        text = "No study records for this period",
+                        modifier = Modifier.fillMaxWidth()
+                            .padding(vertical = 12.dp),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center
+                    )
+                }
+            }
+            else {
+                itemsIndexed(rankedRecords) { index, record ->
+                    GroupRankingRow(
+                        rank = index + 1,
+                        nickname = record.nickname,
+                        yearOfStudy = record.yearOfStudy,
+                        studyTimeSeconds = record.studyTimeSeconds,
+                        dailyGoalSeconds = record.dailyGoalSeconds
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun GroupRankingRow(
+    rank: Int,
+    nickname: String,
+    yearOfStudy: String,
+    studyTimeSeconds: Long,
+    dailyGoalSeconds: Long
+) {
+    val progress = if (dailyGoalSeconds > 0L) {
+        (studyTimeSeconds.toFloat() / dailyGoalSeconds).coerceIn(0f, 1f)
+    } else { 0F }
+
+    Row(modifier = Modifier.fillMaxWidth()
+        .padding(vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        // rank badge
+        Surface(modifier = Modifier.size(56.dp),
+            shape = CircleShape,
+            color = MaterialTheme.colorScheme.primaryContainer
+        ) {
+            Box(contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "$rank",
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer
+                )
+            }
+        }
+        // member details
+        Column(modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            Text(
+                text = yearOfStudy,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Row(modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = nickname,
+                    modifier = Modifier.weight(1f),
+                    style = MaterialTheme.typography.bodyLarge
+                )
+                Text(
+                    text = String.format(
+                        Locale.US,
+                        "%d:%02d:%02d",
+                        studyTimeSeconds / 3600,
+                        (studyTimeSeconds % 3600) / 60,
+                        studyTimeSeconds % 60
+                    ),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            }
+            LinearProgressIndicator(
+                progress = { progress },
+                modifier = Modifier.fillMaxWidth()
+            )
+        }
+    }
+}
+
 private fun formatRelativeTime(timestamp: Long): String {
     val currentTime = System.currentTimeMillis()
     val difference = (currentTime - timestamp).coerceAtLeast(0L)
@@ -1114,6 +1569,16 @@ private fun formatStudyDuration(seconds: Long): String {
     val hours = seconds / 3600
     val minutes = (seconds % 3600) / 60
     return "${hours}h ${minutes}m"
+}
+private fun formatStudyTime(seconds: Long): String {
+    val hours = seconds / 3600
+    val minutes = (seconds % 3600) / 60
+    val remainingSeconds = seconds % 60
+    return String.format(
+        Locale.US,
+        "%d:%02d:%02d",
+        hours, minutes, remainingSeconds
+    )
 }
 private fun formatGroupCreationDate(timestamp: Long): String {
     val dateFormat = SimpleDateFormat(
