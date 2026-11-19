@@ -36,6 +36,7 @@ import androidx.compose.ui.window.PopupProperties
 import androidx.compose.foundation.clickable
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.TextField
 import androidx.compose.ui.text.style.TextAlign
@@ -58,7 +59,6 @@ import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.RadioButton
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -73,6 +73,8 @@ import java.time.temporal.TemporalAdjusters
 import androidx.compose.material3.Switch
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.RadioButton
 
 @Composable
 fun GroupPage(
@@ -158,6 +160,13 @@ fun GroupPage(
                     viewModel.createGroup(newGroup)
                     showDiscoverGroups = false
                     selectedHomeGroupID = newGroup.groupID
+                },
+                onJoinGroup = { group ->
+                    val joinedSuccessfully = viewModel.joinGroup(group)
+                    if (joinedSuccessfully) {
+                        showDiscoverGroups = false
+                        selectedHomeGroupID = group.groupID
+                    }
                 }
             )
         }
@@ -211,7 +220,10 @@ fun GroupPage(
                 .padding(16.dp),
                 contentAlignment = Alignment.CenterEnd
             ) {
-                IconButton(onClick = { showDiscoverGroups = true }) {
+                FloatingActionButton(onClick = { showDiscoverGroups = true },
+                    modifier = Modifier.align(Alignment.BottomEnd)
+                        .padding(16.dp)
+                ) {
                     Text("+")
                 }
             }
@@ -510,7 +522,8 @@ private fun DiscoverGroupsPage(
     userYearOfStudy: String,
     discoverGroups: List<Group>,
     onBack: () -> Unit,
-    onCreateGroup: (Group) -> Unit
+    onCreateGroup: (Group) -> Unit,
+    onJoinGroup: (Group) -> Unit,
 ) {
     // 0 - new, 1 - study time
     var selectedTab by rememberSaveable { mutableIntStateOf(0) }
@@ -519,6 +532,10 @@ private fun DiscoverGroupsPage(
     var filterByPublic by rememberSaveable { mutableStateOf(false) }
 
     var showCreateGroup by rememberSaveable { mutableStateOf(false) }
+    var selectedDiscoverGroupID by rememberSaveable { mutableStateOf<String?>(null) }
+    val selectedDiscoverGroup = discoverGroups.firstOrNull { it.groupID == selectedDiscoverGroupID }
+
+    var showPasswordDialog by rememberSaveable { mutableStateOf(false) }
 
     if (showCreateGroup) {
         CreateGroupPage(
@@ -547,19 +564,11 @@ private fun DiscoverGroupsPage(
                     ) {
                         Text("<")
                     }
-
                     Text(
                         text = "Study group",
                         modifier = Modifier.align(Alignment.Center),
                         style = MaterialTheme.typography.titleLarge
                     )
-
-                    IconButton(
-                        onClick = {},
-                        modifier = Modifier.align(Alignment.CenterEnd)
-                    ) {
-                        Text("⌕")
-                    }
                 }
 
                 val tabs = listOf("New", "Study time")
@@ -686,7 +695,12 @@ private fun DiscoverGroupsPage(
                         }
                     }
                     items(filteredGroups, key = { it.groupID }) { item ->
-                        DiscoverGroupCard(item)
+                        DiscoverGroupCard(
+                            group = item,
+                            onClick = {
+                                selectedDiscoverGroupID= item.groupID
+                            }
+                        )
                     }
                 }
             }
@@ -700,15 +714,42 @@ private fun DiscoverGroupsPage(
                 Text("+")
             }
         }
+
+        if (selectedDiscoverGroup != null) {
+            DiscoverGroupDetailsSheet(
+                group = selectedDiscoverGroup,
+                onDismiss = { selectedDiscoverGroupID = null },
+                onJoinClicked = {
+                    if (selectedDiscoverGroup.password.isNotBlank()) {
+                        showPasswordDialog = true
+                    } else {
+                        onJoinGroup(selectedDiscoverGroup)
+                        selectedDiscoverGroupID = null
+                    }
+                }
+            )
+        }
+        if (showPasswordDialog && selectedDiscoverGroup != null) {
+            PrivateGroupPasswordDialog(
+                group = selectedDiscoverGroup,
+                onDismiss = { showPasswordDialog = false },
+                onConfirm = {
+                    showPasswordDialog = false
+                    onJoinGroup(selectedDiscoverGroup)
+                    selectedDiscoverGroupID = null
+                }
+            )
+        }
     }
 }
 
 @Composable
 private fun DiscoverGroupCard(
-    group: Group
+    group: Group,
+    onClick: () -> Unit
 ) {
-    Card(modifier = Modifier
-        .fillMaxWidth()
+    Card(onClick = onClick,
+        modifier = Modifier.fillMaxWidth()
         .padding(horizontal = 16.dp, vertical = 8.dp)
     ) {
         Column(modifier = Modifier.padding(16.dp),
@@ -765,8 +806,8 @@ private fun CreateGroupPage(
     var selectedDailyGoal by rememberSaveable { mutableIntStateOf(0) }
     var selectedCapacity by rememberSaveable { mutableIntStateOf(0) }
     var description by rememberSaveable { mutableStateOf("") }
-    var selectedJoinMethod by rememberSaveable { mutableStateOf("Join now") }
     var groupNickname by rememberSaveable { mutableStateOf("") }
+    var selectedJoinMethod by rememberSaveable { mutableStateOf("Join now") }
 
     // 1 - group details, 2 - join method, 3 - group profile
     var currentStep by rememberSaveable { mutableIntStateOf(1) }
@@ -824,16 +865,6 @@ private fun CreateGroupPage(
                                 modifier = Modifier.fillMaxWidth(),
                                 placeholder = {
                                     Text("Enter group name")
-                                },
-                                singleLine = true
-                            )
-                            HorizontalDivider(modifier = Modifier.padding(horizontal = 16.dp))
-                            TextField(
-                                value = password,
-                                onValueChange = { password = it },
-                                modifier = Modifier.fillMaxWidth(),
-                                placeholder = {
-                                    Text("Password (optional)")
                                 },
                                 singleLine = true
                             )
@@ -962,7 +993,7 @@ private fun CreateGroupPage(
                                 shape = RoundedCornerShape(12.dp)
                             ) {
                                 Row(modifier = Modifier.clickable {
-                                    selectedJoinMethod = "Join after approval"
+                                    selectedJoinMethod = "Join with password"
                                 }
                                     .padding(16.dp),
                                     verticalAlignment = Alignment.CenterVertically
@@ -970,19 +1001,34 @@ private fun CreateGroupPage(
                                     Column(modifier = Modifier.weight(1f)
                                     ) {
                                         Text(
-                                            text = "Join after approval",
+                                            text = "Join with password",
                                             style = MaterialTheme.typography.bodyLarge
                                         )
                                         Text(
-                                            text = "You need approval from the group leader to join",
+                                            text = "Members must enter the password to join",
                                             style = MaterialTheme.typography.bodySmall
                                         )
                                     }
                                     RadioButton(
-                                        selected = selectedJoinMethod == "Join after approval",
+                                        selected = selectedJoinMethod == "Join with password",
                                         onClick = {
-                                            selectedJoinMethod = "Join after approval"
+                                            selectedJoinMethod = "Join with password"
                                         }
+                                    )
+                                }
+                                if (selectedJoinMethod == "Join with password") {
+                                    HorizontalDivider()
+
+                                    TextField(
+                                        value = password,
+                                        onValueChange = { password = it },
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(16.dp),
+                                        placeholder = {
+                                            Text("Enter group password")
+                                        },
+                                        singleLine = true
                                     )
                                 }
                             }
@@ -996,7 +1042,8 @@ private fun CreateGroupPage(
                     },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 12.dp)
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    enabled = selectedJoinMethod == "Join now" || password.isNotBlank()
                 ) {
                     Text("Next 2/3")
                 }
@@ -1053,9 +1100,19 @@ private fun CreateGroupPage(
                             memberCount = 1,
                             capacity = selectedCapacity,
                             ownerName = groupNickname.trim(),
-                            privacyStatus = if (password.isNotBlank()) "Private" else "Public",
+                            privacyStatus = if (selectedJoinMethod == "Join with password") {
+                                "Private"
+                            } else {
+                                "Public"
+                            },
                             dailyGoalTime = selectedDailyGoal * 3600L,
-                            description = description.trim()
+                            description = description.trim(),
+                            joinMethod = selectedJoinMethod,
+                            password = if (selectedJoinMethod == "Join with password") {
+                                password.trim()
+                            } else {
+                                ""
+                            }
                         )
                         onCreateGroup(newGroup)
                     },
@@ -1138,7 +1195,7 @@ private fun GroupHomePage(
 ) {
     var selectedTab by rememberSaveable { mutableStateOf("Home") }
     var showGroupSettings by rememberSaveable { mutableStateOf(false) }
-    var isGroupLeader by rememberSaveable { mutableStateOf(false) }
+    var isGroupLeader by rememberSaveable { mutableStateOf(true) }
     var showMemberDetails by rememberSaveable { mutableStateOf(false) }
 
     if (showGroupSettings) {
@@ -1267,7 +1324,7 @@ private fun GroupHomePage(
         }
     }
     if (showMemberDetails && !showGroupSettings) {
-        GroupMemberDetailsCard(
+        GroupMemberDetailsSheet(
             onDismiss = { showMemberDetails = false }
         )
     }
@@ -1745,14 +1802,8 @@ private fun GroupSettingsPage(
                                 )
                                 HorizontalDivider()
                                 GroupSettingsRow(
-                                    title = "Join method",
-                                    value = "Join after approval",
-                                    onClick = {}
-                                )
-                                HorizontalDivider()
-                                GroupSettingsRow(
                                     title = "Change password",
-                                    value = if (group.privacyStatus == "public") {
+                                    value = if (group.privacyStatus.equals("Public", ignoreCase = true)) {
                                         "Public" } else { "Private" },
                                     onClick = {}
                                 )
@@ -1762,11 +1813,6 @@ private fun GroupSettingsPage(
                             shape = RoundedCornerShape(16.dp)
                         ) {
                             Column{
-                                GroupSettingsRow(
-                                    title = "Join request",
-                                    onClick = {}
-                                )
-                                HorizontalDivider()
                                 GroupSettingsRow(
                                     title = "Manage group members",
                                     onClick = {}
@@ -1962,7 +2008,7 @@ private fun GroupChatSettingsPage(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun GroupMemberDetailsCard(
+private fun GroupMemberDetailsSheet(
     onDismiss: () -> Unit
 ) {
     ModalBottomSheet(
@@ -2100,6 +2146,150 @@ private fun GroupMemberDetailsCard(
             )
         }
     }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun DiscoverGroupDetailsSheet(
+    group: Group,
+    onDismiss: () -> Unit,
+    onJoinClicked: () -> Unit
+) {
+    ModalBottomSheet(onDismissRequest = onDismiss,
+        containerColor = MaterialTheme.colorScheme.surface
+    ) {
+        Column(modifier = Modifier.fillMaxWidth()
+                .padding(horizontal = 20.dp).padding(bottom = 24.dp),
+            verticalArrangement = Arrangement.spacedBy(20.dp)
+        ) {
+            Text(
+                text = group.groupName,
+                style = MaterialTheme.typography.headlineMedium
+            )
+            Text(
+                text = "${group.yearOfStudy} · ${formatGroupCreationDate(group.creationDate)}",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Text(
+                    text = "Goal ${formatStudyDuration(group.dailyGoalTime)}",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                Text(
+                    text = "Members ${group.memberCount}/${group.capacity} people",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                Text(
+                    text = "Group leader ${group.ownerName}",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                Text(
+                    text = "Study time ${formatStudyDuration(group.totalStudyTime)}",
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            }
+            HorizontalDivider()
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Text(
+                    text = "Group description",
+                    style = MaterialTheme.typography.titleMedium
+                )
+                Text(
+                    text = group.description.ifBlank {
+                        "No group description available."
+                    },
+                    style = MaterialTheme.typography.bodyMedium
+                )
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+            Row(modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                OutlinedButton(onClick = onDismiss,
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Text("Close")
+                }
+                Button(onClick = onJoinClicked,
+                    modifier = Modifier.weight(1.5f)
+                ) {
+                    Text(
+                        text = "Join",
+                        style = MaterialTheme.typography.labelMedium
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun PrivateGroupPasswordDialog(
+    group: Group,
+    onDismiss: () -> Unit,
+    onConfirm: (String) -> Unit
+) {
+    var enteredPassword by rememberSaveable { mutableStateOf("") }
+    var isPasswordIncorrect by rememberSaveable { mutableStateOf(false) }
+
+    AlertDialog(onDismissRequest = onDismiss,
+        title = {
+            Text(
+                text = "Private group",
+                style = MaterialTheme.typography.titleLarge
+            )
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                TextField(
+                    value = enteredPassword,
+                    onValueChange = {
+                        enteredPassword = it
+                        isPasswordIncorrect = false
+                    },
+                    placeholder = { Text("Enter password") },
+                    singleLine = true,
+                    isError = isPasswordIncorrect,
+                    supportingText = {
+                        if (isPasswordIncorrect) {
+                            Text(
+                                text = "Incorrect password. Please try again.",
+                                color = MaterialTheme.colorScheme.error,
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    if (enteredPassword == group.password) {
+                        onConfirm(enteredPassword)
+                    } else {
+                        isPasswordIncorrect = true
+                    }
+                },
+                enabled = enteredPassword.isNotBlank()
+            ) {
+                Text("OK")
+            }
+        },
+        dismissButton = {
+            TextButton(
+                onClick = onDismiss
+            ) {
+                Text("Cancel")
+            }
+        }
+    )
 }
 
 private fun formatRelativeTime(timestamp: Long): String {

@@ -12,9 +12,12 @@ data class Group(
     // discover group info
     val dailyGoalTime: Long = 0L,
     val totalStudyTime: Long = 0L,
-    // val attendanceRate: Int = 0,
     val description: String = "",
-    val creationDate: Long = System.currentTimeMillis()
+    val creationDate: Long = System.currentTimeMillis(),
+
+    // join method: join now or join with password
+    val joinMethod: String = "Join now",
+    val password: String = "",
 )
 
 data class GroupNotification(

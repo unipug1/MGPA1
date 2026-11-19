@@ -3,6 +3,7 @@ package com.nyp.scaffoldingapp.ui.pages
 import androidx.lifecycle.ViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.catch
 import java.util.UUID
 
 class GroupViewModel : ViewModel() {
@@ -25,7 +26,7 @@ class GroupViewModel : ViewModel() {
                 memberCount = 4,
                 capacity = 4,
                 ownerName = "_sze:(",
-                privacyStatus = "Public"
+                privacyStatus = "Public",
             )
         )
     )
@@ -40,6 +41,7 @@ class GroupViewModel : ViewModel() {
                 capacity = 5,
                 ownerName = "psyduck",
                 privacyStatus = "Private",
+                password = "secret",
                 dailyGoalTime = 7200L,
                 totalStudyTime = 0L,
                 description = "LOCK INNN",
@@ -52,11 +54,11 @@ class GroupViewModel : ViewModel() {
                 memberCount = 3,
                 capacity = 3,
                 ownerName = "_sze:(",
-                privacyStatus = "Private",
+                privacyStatus = "Public",
                 dailyGoalTime = 3600L,
                 totalStudyTime = 360L,
                 description = "LOCK OUT",
-                creationDate = System.currentTimeMillis() - 86_400_000L
+                creationDate = System.currentTimeMillis() - 86_400_000L,
             )
         )
     )
@@ -72,7 +74,7 @@ class GroupViewModel : ViewModel() {
             GroupNotification(
                 notificationID = UUID.randomUUID().toString(),
                 groupID = "group1",
-                message = "Your request has been approved.",
+                message = "sze:( nudged kar",
                 date = System.currentTimeMillis()
             )
         )
@@ -163,6 +165,35 @@ class GroupViewModel : ViewModel() {
 
     fun createGroup(group: Group) {
         _groups.value += group
+    }
+
+    fun joinGroup(group: Group): Boolean {
+        val currentGroups = _groups.value
+
+        // prevent joining a group the user already belongs to
+        if (currentGroups.any { it.groupID == group.groupID }) return false
+
+        // check whether the group still exists in Discover Groups
+        val discoverGroup = _discoverGroups.value.firstOrNull {
+            it.groupID == group.groupID } ?: return false
+
+        // prevent joining full groups
+        if (discoverGroup.memberCount >= discoverGroup.capacity) return false
+
+        // increase member count after joining
+        val joinedGroup = discoverGroup.copy(
+            memberCount = discoverGroup.memberCount + 1
+        )
+
+        // add joined group to my groups
+        _groups.value = currentGroups + joinedGroup
+
+        // remove joined group from discovery page
+        _discoverGroups.value = _discoverGroups.value.filterNot {
+            it.groupID == joinedGroup.groupID
+        }
+
+        return true
     }
 
     fun addStudyRecord(studyRecord: GroupStudyRecord) {
