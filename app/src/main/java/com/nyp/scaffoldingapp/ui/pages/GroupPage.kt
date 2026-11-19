@@ -1129,120 +1129,132 @@ private fun GroupHomePage(
     onBack: () -> Unit
 ) {
     var selectedTab by rememberSaveable { mutableStateOf("Home") }
-    Column(modifier = Modifier.fillMaxWidth()
-    ) {
-        Box(modifier = Modifier.fillMaxWidth()
-            .padding(16.dp)
-        ) {
-            IconButton(onClick = onBack,
-                modifier = Modifier.align(Alignment.CenterStart)
-            ) {
-                Text("<")
-            }
-            Text(
-                text = group.groupName,
-                modifier = Modifier.align(Alignment.Center),
-                style = MaterialTheme.typography.titleLarge
-            )
-            IconButton(onClick = {},
-                modifier = Modifier.align(Alignment.CenterEnd)
-            ) {
-                Text("⚙")
-            }
-        }
+    var showGroupSettings by rememberSaveable { mutableStateOf(false) }
+
+    if (showGroupSettings) {
+        GroupSettingsPage(
+            group = group,
+            onBack = { showGroupSettings = false }
+        )
+    }
+    else {
         Column(modifier = Modifier.fillMaxWidth()
-            .weight(1f)
-            .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            when (selectedTab) {
-                "Home" -> {
-                    Surface(modifier = Modifier.fillMaxWidth(),
-                        shape = RoundedCornerShape(12.dp),
-                        color = MaterialTheme.colorScheme.surface
-                    ) {
-                        Column(modifier = Modifier.padding(16.dp),
+            Box(modifier = Modifier.fillMaxWidth()
+                .padding(16.dp)
+            ) {
+                IconButton(onClick = onBack,
+                    modifier = Modifier.align(Alignment.CenterStart)
+                ) {
+                    Text("<")
+                }
+                Text(
+                    text = group.groupName,
+                    modifier = Modifier.align(Alignment.Center),
+                    style = MaterialTheme.typography.titleLarge
+                )
+                IconButton(onClick = {
+                    showGroupSettings = true
+                },
+                    modifier = Modifier.align(Alignment.CenterEnd)
+                ) {
+                    Text("⚙")
+                }
+            }
+            Column(modifier = Modifier.fillMaxWidth()
+                .weight(1f)
+                .padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
+            ) {
+                when (selectedTab) {
+                    "Home" -> {
+                        Surface(modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(12.dp),
+                            color = MaterialTheme.colorScheme.surface
+                        ) {
+                            Column(modifier = Modifier.padding(16.dp),
+                                verticalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Row(modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = "Group description",
+                                        style = MaterialTheme.typography.titleMedium
+                                    )
+                                }
+                                Text(
+                                    text = group.description.ifBlank {
+                                        "No group description."
+                                    },
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
+                        }
+                        Column(modifier = Modifier.fillMaxWidth(),
                             verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             Row(modifier = Modifier.fillMaxWidth(),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
-                                    text = "Group description",
+                                    text = "Studying ",
                                     style = MaterialTheme.typography.titleMedium
                                 )
+                                Text(
+                                    text = "${group.memberCount} members",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
                             }
-                            Text(
-                                text = group.description.ifBlank {
-                                    "No group description."
-                                },
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-                    Column(modifier = Modifier.fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Row(modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = "Studying ",
-                                style = MaterialTheme.typography.titleMedium
-                            )
-                            Text(
-                                text = "${group.memberCount} members",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
 
-                        LazyVerticalGrid(columns = GridCells.Fixed(4),
-                            modifier = Modifier.fillMaxWidth()
-                                .heightIn(max = 300.dp),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
-                            verticalArrangement = Arrangement.spacedBy(12.dp)
-                        ) {
-                            items(group.memberCount) {
-                                Surface(
-                                    modifier = Modifier.fillMaxWidth()
-                                        .aspectRatio(1f),
-                                    shape = RoundedCornerShape(12.dp),
-                                    color = MaterialTheme.colorScheme.surfaceVariant
-                                ) {
-                                    Box(contentAlignment = Alignment.Center
+                            LazyVerticalGrid(columns = GridCells.Fixed(4),
+                                modifier = Modifier.fillMaxWidth()
+                                    .heightIn(max = 300.dp),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                verticalArrangement = Arrangement.spacedBy(12.dp)
+                            ) {
+                                items(group.memberCount) {
+                                    Surface(
+                                        modifier = Modifier.fillMaxWidth()
+                                            .aspectRatio(1f),
+                                        shape = RoundedCornerShape(12.dp),
+                                        color = MaterialTheme.colorScheme.surfaceVariant
                                     ) {
-                                        IconButton(
-                                            onClick = {}
+                                        Box(contentAlignment = Alignment.Center
                                         ) {
-                                            Text("Person")
+                                            IconButton(
+                                                onClick = {}
+                                            ) {
+                                                Text("Person")
+                                            }
                                         }
                                     }
                                 }
                             }
                         }
                     }
-                }
-                "Rankings" -> {
-                    GroupRankingsPage(
-                        group = group,
-                        studyRecords = studyRecords
-                    )
-                }
-                "Invite" -> {
-                    GroupInvitePage(
-                        group = group
-                    )
+                    "Rankings" -> {
+                        GroupRankingsPage(
+                            group = group,
+                            studyRecords = studyRecords
+                        )
+                    }
+                    "Invite" -> {
+                        GroupInvitePage(
+                            group = group
+                        )
+                    }
                 }
             }
+            GroupHomeNavigation(
+                selectedTab = selectedTab,
+                onTabSelected = { tab ->
+                    selectedTab = tab
+                }
+            )
         }
-        GroupHomeNavigation(
-            selectedTab = selectedTab,
-            onTabSelected = { tab ->
-                selectedTab = tab
-            }
-        )
     }
 }
 
@@ -1604,6 +1616,197 @@ private fun GroupInvitePage(
             text = "They'll automatically join the group when they open the link",
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+@Composable
+private fun GroupSettingsPage(
+    group: Group,
+    onBack: () -> Unit
+) {
+    Column(modifier = Modifier.fillMaxSize()
+    ) {
+        Box(modifier = Modifier.fillMaxWidth()
+            .padding(16.dp),
+        ) {
+            IconButton(onClick = onBack,
+                modifier = Modifier.align(Alignment.CenterStart)
+            ) {
+                Text("<")
+            }
+            Text(
+                text = "Group settings",
+                modifier = Modifier.align(Alignment.Center),
+                style = MaterialTheme.typography.titleLarge
+            )
+        }
+        Column(modifier = Modifier.weight(1f)
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Column(modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    text = "Personal settings",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Card(modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Column {
+                        GroupSettingsRow(
+                            title = "Group profile",
+                            onClick = {
+                                // step 3/3 from the creation of groups
+                            }
+                        )
+                        HorizontalDivider()
+                        GroupSettingsRow(
+                            title = "Group notification settings",
+                            onClick = {
+
+                            }
+                        )
+                    }
+                }
+            }
+            Column(modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Text(
+                    text = "Group leader menu",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Card(modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Column{
+                        GroupSettingsRow(
+                            title = "Change group name",
+                            onClick = {}
+                        )
+                        HorizontalDivider()
+                        GroupSettingsRow(
+                            title = "Group description",
+                            value = group.description,
+                            onClick = {}
+                        )
+                        HorizontalDivider()
+                        GroupSettingsRow(
+                            title = "Change category",
+                            value = group.yearOfStudy,
+                            onClick = {}
+                        )
+                        HorizontalDivider()
+                        GroupSettingsRow(
+                            title = "Change daily goal",
+                            value = "${group.dailyGoalTime / 3600}h",
+                            onClick = {}
+                        )
+                        HorizontalDivider()
+                        GroupSettingsRow(
+                            title = "Change capacity",
+                            value = "${group.capacity} people",
+                            onClick = {}
+                        )
+                        HorizontalDivider()
+                        GroupSettingsRow(
+                            title = "Join method",
+                            value = "Join after approval",
+                            onClick = {}
+                        )
+                        HorizontalDivider()
+                        GroupSettingsRow(
+                            title = "Change password",
+                            value = if (group.privacyStatus == "public") {
+                                "Public" } else { "Private" },
+                            onClick = {}
+                        )
+                    }
+                }
+                Card(modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Column{
+                        GroupSettingsRow(
+                            title = "Join request",
+                            onClick = {}
+                        )
+                        HorizontalDivider()
+                        GroupSettingsRow(
+                            title = "Manage group members",
+                            onClick = {}
+                        )
+                        HorizontalDivider()
+                        GroupSettingsRow(
+                            title = "Nudge everyone at once",
+                            onClick = {}
+                        )
+                        HorizontalDivider()
+                        GroupSettingsRow(
+                            title = "Group chat",
+                            value = "On",
+                            onClick = {}
+                        )
+                        HorizontalDivider()
+                        GroupSettingsRow(
+                            title = "Show added time",
+                            value = "On",
+                            onClick = {}
+                        )
+                        HorizontalDivider()
+                        GroupSettingsRow(
+                            title = "Promote group",
+                            value = "41s ago",
+                            onClick = {}
+                        )
+                    }
+                }
+                Card(modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    GroupSettingsRow(
+                        title = "Disband group",
+                        onClick = {}
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun GroupSettingsRow(
+    title: String,
+    value: String? = null,
+    onClick: () -> Unit
+) {
+    Row(modifier = Modifier.fillMaxWidth()
+        .clickable(onClick = onClick)
+        .padding(horizontal = 16.dp, vertical = 18.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            text = title,
+            modifier = Modifier.weight(1f),
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+        if (value != null) {
+            Text(
+                text = value,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+        }
+        Text(
+            text = ">"
         )
     }
 }
