@@ -71,6 +71,8 @@ import java.time.DayOfWeek
 import java.time.format.DateTimeFormatter
 import java.time.temporal.TemporalAdjusters
 import androidx.compose.material3.Switch
+import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.ExperimentalMaterial3Api
 
 @Composable
 fun GroupPage(
@@ -1137,6 +1139,7 @@ private fun GroupHomePage(
     var selectedTab by rememberSaveable { mutableStateOf("Home") }
     var showGroupSettings by rememberSaveable { mutableStateOf(false) }
     var isGroupLeader by rememberSaveable { mutableStateOf(false) }
+    var showMemberDetails by rememberSaveable { mutableStateOf(false) }
 
     if (showGroupSettings) {
         GroupSettingsPage(
@@ -1226,19 +1229,16 @@ private fun GroupHomePage(
                                 verticalArrangement = Arrangement.spacedBy(12.dp)
                             ) {
                                 items(group.memberCount) {
-                                    Surface(
-                                        modifier = Modifier.fillMaxWidth()
+                                    Surface(modifier = Modifier.fillMaxWidth()
                                             .aspectRatio(1f),
                                         shape = RoundedCornerShape(12.dp),
                                         color = MaterialTheme.colorScheme.surfaceVariant
                                     ) {
-                                        Box(contentAlignment = Alignment.Center
+                                        Box(contentAlignment = Alignment.Center,
+                                            modifier = Modifier
+                                                .clickable { showMemberDetails = true }
                                         ) {
-                                            IconButton(
-                                                onClick = {}
-                                            ) {
-                                                Text("Person")
-                                            }
+                                            Text("Person")
                                         }
                                     }
                                 }
@@ -1265,6 +1265,11 @@ private fun GroupHomePage(
                 }
             )
         }
+    }
+    if (showMemberDetails && !showGroupSettings) {
+        GroupMemberDetailsCard(
+            onDismiss = { showMemberDetails = false }
+        )
     }
 }
 
@@ -1951,6 +1956,148 @@ private fun GroupChatSettingsPage(
                     )
                 }
             }
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun GroupMemberDetailsCard(
+    onDismiss: () -> Unit
+) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        containerColor = MaterialTheme.colorScheme.surface
+    ) {
+        Column(modifier = Modifier.fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Row(modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                // placeholder for study icon
+                Box(modifier = Modifier.size(80.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "Icon",
+                        style = MaterialTheme.typography.headlineLarge
+                    )
+                }
+                Spacer(modifier = Modifier.weight(1f))
+                OutlinedButton(onClick = {}
+                ) {
+                    Text(
+                        text = "Nudge",
+                        style = MaterialTheme.typography.labelMedium
+                    )
+                }
+                Spacer(modifier = Modifier.width(8.dp))
+                OutlinedButton(onClick = {}
+                ) {
+                    Text(
+                        text = "Statistics",
+                        style = MaterialTheme.typography.labelMedium
+                    )
+                }
+                IconButton(onClick = {}) {
+                    Text("⋮")
+                }
+            }
+            Row(verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Text(
+                    text = "sze:)",
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            }
+            Card(modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp)
+            ) {
+                Column(modifier = Modifier.padding(20.dp),
+                    verticalArrangement = Arrangement.spacedBy(20.dp)
+                ) {
+                    Text(
+                        text = "0:09:48",
+                        style = MaterialTheme.typography.headlineMedium,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+
+                    Row(modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        Column (modifier = Modifier.weight(1f),
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Text(
+                                text = "Start",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Text(
+                                text = "PM 9.58",
+                                style = MaterialTheme.typography.titleMedium
+                            )
+                        }
+
+                        Column(modifier = Modifier.weight(1f),
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Text(
+                                text = "End",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Text(
+                                text = "PM 11:29",
+                                style = MaterialTheme.typography.titleMedium
+                            )
+                        }
+                    }
+                    Row(modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(16.dp)
+                    ) {
+                        Column(modifier = Modifier.weight(1f),
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Text(
+                                text = "Max focus",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Text(
+                                text = "0:07:38",
+                                style = MaterialTheme.typography.titleMedium
+                            )
+                        }
+
+                        Column(modifier = Modifier.weight(1f),
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Text(
+                                text = "Allowed Apps",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Text(
+                                text = "0:00:00",
+                                style = MaterialTheme.typography.titleMedium
+                            )
+                        }
+                    }
+                }
+            }
+            Text(
+                text = "JC Year 2 · Nov 16, 2026 joined",
+                modifier = Modifier.fillMaxWidth(),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center
+            )
         }
     }
 }
