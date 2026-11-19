@@ -130,12 +130,17 @@ class GroupViewModel : ViewModel() {
         )
     )
 
+    private val _groupChatEnabled = MutableStateFlow<Map<String, Boolean>>(
+        emptyMap()
+    )
+
     // read only:
     val groups = _groups.asStateFlow()
     val discoverGroups = _discoverGroups.asStateFlow()
     val notifications = _notifications.asStateFlow()
     val messages = _messages.asStateFlow()
     val studyRecords = _studyRecords.asStateFlow()
+    val groupChatEnabled = _groupChatEnabled.asStateFlow()
 
     fun clearNotifications() {
         _notifications.value = emptyList()
@@ -162,5 +167,9 @@ class GroupViewModel : ViewModel() {
 
     fun addStudyRecord(studyRecord: GroupStudyRecord) {
         _studyRecords.value += studyRecord
+    }
+
+    fun updateGroupChatEnabled(groupID: String, enabled: Boolean) {
+        _groupChatEnabled.value += (groupID to enabled)
     }
 }

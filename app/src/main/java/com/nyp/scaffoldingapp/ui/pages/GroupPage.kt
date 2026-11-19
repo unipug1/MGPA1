@@ -70,6 +70,7 @@ import androidx.compose.material3.OutlinedButton
 import java.time.DayOfWeek
 import java.time.format.DateTimeFormatter
 import java.time.temporal.TemporalAdjusters
+import androidx.compose.material3.Switch
 
 @Composable
 fun GroupPage(
@@ -81,6 +82,7 @@ fun GroupPage(
     val notifications by viewModel.notifications.collectAsState()
     val messages by viewModel.messages.collectAsState()
     val studyRecords by viewModel.studyRecords.collectAsState()
+    val groupChatEnabledByGroup by viewModel.groupChatEnabled.collectAsState()
 
     // opens group chat
     var selectedGroupID by rememberSaveable { mutableStateOf<String?>(null) }
@@ -123,6 +125,13 @@ fun GroupPage(
                 studyRecords = studyRecords,
                 onBack = {
                     selectedHomeGroupID = null
+                },
+                groupChatEnabled = groupChatEnabledByGroup[selectedHomeGroup.groupID] ?: true,
+                onGroupChatEnabledChange = { enabled ->
+                    viewModel.updateGroupChatEnabled(
+                        groupID = selectedHomeGroup.groupID,
+                        enabled = enabled
+                    )
                 }
             )
         }
@@ -181,12 +190,16 @@ fun GroupPage(
                 items(groups, key = {it.groupID}) { item ->
                     GroupRow(
                         group = item,
-                        onGroupClicked = { groupID ->
-                            selectedHomeGroupID = groupID
+                        groupChatEnabled = groupChatEnabledByGroup[item.groupID] ?: true,
+                        onGroupClicked = {
+                            selectedHomeGroupID = item.groupID
                         },
-                        onChatClicked = { groupID ->
+                        onChatClicked = {
                             showNotifications = false
-                            selectedGroupID = groupID
+                            val isChatEnabled = groupChatEnabledByGroup[item.groupID] ?: true
+                            if (isChatEnabled) {
+                                selectedGroupID = item.groupID
+                            }
                         }
                     )
                 }
@@ -269,6 +282,7 @@ fun GroupPage(
 @Composable
 private fun GroupRow(
     group: Group,
+    groupChatEnabled: Boolean,
     onGroupClicked: (String) -> Unit,
     onChatClicked: (String) -> Unit
 ) {
@@ -304,7 +318,9 @@ private fun GroupRow(
                 shape = RoundedCornerShape(12.dp)
             )
             .clickable {
-                onChatClicked(group.groupID)
+                if (groupChatEnabled) {
+                    onChatClicked(group.groupID)
+                }
             },
             contentAlignment = Alignment.Center
         ) {
@@ -369,18 +385,6 @@ private fun GroupChatPage(
                 style = MaterialTheme.typography.titleLarge,
                 color = MaterialTheme.colorScheme.onBackground
             )
-
-            Row(modifier= Modifier.align(Alignment.CenterEnd)
-            ) {
-                IconButton(onClick = {},
-                ) {
-                    Text("🔔")
-                }
-                IconButton(onClick = {},
-                ) {
-                    Text("ⓘ")
-                }
-            }
         }
         LazyColumn(modifier = Modifier
             .fillMaxWidth()
@@ -1126,14 +1130,20 @@ private fun CreateGroupDropdownRow(
 private fun GroupHomePage(
     group: Group,
     studyRecords: List<GroupStudyRecord>,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    groupChatEnabled: Boolean,
+    onGroupChatEnabledChange: (Boolean) -> Unit
 ) {
     var selectedTab by rememberSaveable { mutableStateOf("Home") }
     var showGroupSettings by rememberSaveable { mutableStateOf(false) }
+    var isGroupLeader by rememberSaveable { mutableStateOf(false) }
 
     if (showGroupSettings) {
         GroupSettingsPage(
             group = group,
+            isGroupLeader = isGroupLeader,
+            groupChatEnabled = groupChatEnabled,
+            onGroupChatEnabledChange = onGroupChatEnabledChange,
             onBack = { showGroupSettings = false }
         )
     }
@@ -1623,156 +1633,232 @@ private fun GroupInvitePage(
 @Composable
 private fun GroupSettingsPage(
     group: Group,
+    isGroupLeader: Boolean,
+    groupChatEnabled: Boolean,
+    onGroupChatEnabledChange: (Boolean) -> Unit,
     onBack: () -> Unit
 ) {
-    Column(modifier = Modifier.fillMaxSize()
-    ) {
-        Box(modifier = Modifier.fillMaxWidth()
-            .padding(16.dp),
-        ) {
-            IconButton(onClick = onBack,
-                modifier = Modifier.align(Alignment.CenterStart)
-            ) {
-                Text("<")
-            }
-            Text(
-                text = "Group settings",
-                modifier = Modifier.align(Alignment.Center),
-                style = MaterialTheme.typography.titleLarge
-            )
-        }
-        Column(modifier = Modifier.weight(1f)
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            Column(modifier = Modifier.fillMaxWidth()
-            ) {
-                Text(
-                    text = "Personal settings",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Card(modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp)
-                ) {
-                    Column {
-                        GroupSettingsRow(
-                            title = "Group profile",
-                            onClick = {
-                                // step 3/3 from the creation of groups
-                            }
-                        )
-                        HorizontalDivider()
-                        GroupSettingsRow(
-                            title = "Group notification settings",
-                            onClick = {
+    var showChatSettings by rememberSaveable { mutableStateOf(false) }
 
-                            }
-                        )
-                    }
+    if (showChatSettings) {
+        GroupChatSettingsPage(
+            isGroupLeader = isGroupLeader,
+            groupChatEnabled = groupChatEnabled,
+            onGroupChatEnabledChange = onGroupChatEnabledChange,
+            onBack = { showChatSettings = false }
+        )
+    }
+    else {
+        Column(modifier = Modifier.fillMaxSize()
+        ) {
+            Box(modifier = Modifier.fillMaxWidth()
+                .padding(16.dp),
+            ) {
+                IconButton(onClick = onBack,
+                    modifier = Modifier.align(Alignment.CenterStart)
+                ) {
+                    Text("<")
                 }
+                Text(
+                    text = "Group settings",
+                    modifier = Modifier.align(Alignment.Center),
+                    style = MaterialTheme.typography.titleLarge
+                )
             }
-            Column(modifier = Modifier.fillMaxWidth(),
+            Column(modifier = Modifier.weight(1f)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Text(
-                    text = "Group leader menu",
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Card(modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp)
+                Column(modifier = Modifier.fillMaxWidth()
                 ) {
-                    Column{
-                        GroupSettingsRow(
-                            title = "Change group name",
-                            onClick = {}
-                        )
-                        HorizontalDivider()
-                        GroupSettingsRow(
-                            title = "Group description",
-                            value = group.description,
-                            onClick = {}
-                        )
-                        HorizontalDivider()
-                        GroupSettingsRow(
-                            title = "Change category",
-                            value = group.yearOfStudy,
-                            onClick = {}
-                        )
-                        HorizontalDivider()
-                        GroupSettingsRow(
-                            title = "Change daily goal",
-                            value = "${group.dailyGoalTime / 3600}h",
-                            onClick = {}
-                        )
-                        HorizontalDivider()
-                        GroupSettingsRow(
-                            title = "Change capacity",
-                            value = "${group.capacity} people",
-                            onClick = {}
-                        )
-                        HorizontalDivider()
-                        GroupSettingsRow(
-                            title = "Join method",
-                            value = "Join after approval",
-                            onClick = {}
-                        )
-                        HorizontalDivider()
-                        GroupSettingsRow(
-                            title = "Change password",
-                            value = if (group.privacyStatus == "public") {
-                                "Public" } else { "Private" },
-                            onClick = {}
-                        )
-                    }
-                }
-                Card(modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp)
-                ) {
-                    Column{
-                        GroupSettingsRow(
-                            title = "Join request",
-                            onClick = {}
-                        )
-                        HorizontalDivider()
-                        GroupSettingsRow(
-                            title = "Manage group members",
-                            onClick = {}
-                        )
-                        HorizontalDivider()
-                        GroupSettingsRow(
-                            title = "Nudge everyone at once",
-                            onClick = {}
-                        )
-                        HorizontalDivider()
-                        GroupSettingsRow(
-                            title = "Group chat",
-                            value = "On",
-                            onClick = {}
-                        )
-                        HorizontalDivider()
-                        GroupSettingsRow(
-                            title = "Show added time",
-                            value = "On",
-                            onClick = {}
-                        )
-                        HorizontalDivider()
-                        GroupSettingsRow(
-                            title = "Promote group",
-                            value = "41s ago",
-                            onClick = {}
-                        )
-                    }
-                }
-                Card(modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(16.dp)
-                ) {
-                    GroupSettingsRow(
-                        title = "Disband group",
-                        onClick = {}
+                    Text(
+                        text = "Personal settings",
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
+                    Card(modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(16.dp)
+                    ) {
+                        Column{
+                            GroupSettingsRow(
+                                title = "Group profile",
+                                onClick = {
+                                    // step 3/3 from the creation of groups
+                                }
+                            )
+                            HorizontalDivider()
+                            GroupSettingsRow(
+                                title = "Group notification settings",
+                                onClick = {
+
+                                }
+                            )
+                        }
+                    }
+                }
+                if (isGroupLeader) {
+                    Column(modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Text(
+                            text = "Group leader menu",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Card(modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(16.dp)
+                        ) {
+                            Column{
+                                GroupSettingsRow(
+                                    title = "Change group name",
+                                    onClick = {}
+                                )
+                                HorizontalDivider()
+                                GroupSettingsRow(
+                                    title = "Group description",
+                                    value = group.description,
+                                    onClick = {}
+                                )
+                                HorizontalDivider()
+                                GroupSettingsRow(
+                                    title = "Change category",
+                                    value = group.yearOfStudy,
+                                    onClick = {}
+                                )
+                                HorizontalDivider()
+                                GroupSettingsRow(
+                                    title = "Change daily goal",
+                                    value = "${group.dailyGoalTime / 3600}h",
+                                    onClick = {}
+                                )
+                                HorizontalDivider()
+                                GroupSettingsRow(
+                                    title = "Change capacity",
+                                    value = "${group.capacity} people",
+                                    onClick = {}
+                                )
+                                HorizontalDivider()
+                                GroupSettingsRow(
+                                    title = "Join method",
+                                    value = "Join after approval",
+                                    onClick = {}
+                                )
+                                HorizontalDivider()
+                                GroupSettingsRow(
+                                    title = "Change password",
+                                    value = if (group.privacyStatus == "public") {
+                                        "Public" } else { "Private" },
+                                    onClick = {}
+                                )
+                            }
+                        }
+                        Card(modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(16.dp)
+                        ) {
+                            Column{
+                                GroupSettingsRow(
+                                    title = "Join request",
+                                    onClick = {}
+                                )
+                                HorizontalDivider()
+                                GroupSettingsRow(
+                                    title = "Manage group members",
+                                    onClick = {}
+                                )
+                                HorizontalDivider()
+                                GroupSettingsRow(
+                                    title = "Nudge everyone at once",
+                                    onClick = {}
+                                )
+                                HorizontalDivider()
+                                GroupSettingsRow(
+                                    title = "Group chat",
+                                    value = if (groupChatEnabled) "On" else "Off",
+                                    onClick = {
+                                        showChatSettings = true
+                                    }
+                                )
+                                HorizontalDivider()
+                                GroupSettingsRow(
+                                    title = "Show added time",
+                                    value = "On",
+                                    onClick = {}
+                                )
+                                HorizontalDivider()
+                                GroupSettingsRow(
+                                    title = "Promote group",
+                                    value = "41s ago",
+                                    onClick = {}
+                                )
+                            }
+                        }
+                        Card(modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(16.dp)
+                        ) {
+                            GroupSettingsRow(
+                                title = "Disband group",
+                                onClick = {}
+                            )
+                        }
+                    }
+                }
+                if (!isGroupLeader) {
+                    Column(modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
+                    ) {
+                        Text(
+                            text = "Group info",
+                            style = MaterialTheme.typography.titleMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Card(modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(16.dp)
+                        ) {
+                            Column{
+                                GroupSettingsRow(
+                                    title = "Group description",
+                                    value = group.description,
+                                    onClick = {}
+                                )
+                                HorizontalDivider()
+                                GroupSettingsRow(
+                                    title = "Group leader",
+                                    value = group.ownerName,
+                                    onClick = {}
+                                )
+                            }
+                        }
+                        Card(modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(16.dp)
+                        ) {
+                            GroupSettingsRow(
+                                title = "Category",
+                                value = group.yearOfStudy,
+                                onClick = {}
+                            )
+                            HorizontalDivider()
+                            GroupSettingsRow(
+                                title = "Daily goal",
+                                value = "${group.dailyGoalTime / 3600}h",
+                                onClick = {}
+                            )
+                            HorizontalDivider()
+                            GroupSettingsRow(
+                                title = "Capacity",
+                                value = "${group.capacity} people",
+                                onClick = {}
+                            )
+                        }
+                        Card(modifier = Modifier.fillMaxWidth(),
+                            shape = RoundedCornerShape(16.dp)
+                        ) {
+                            GroupSettingsRow(
+                                title = "Leave group",
+                                onClick = {}
+                            )
+                        }
+                    }
                 }
             }
         }
@@ -1801,13 +1887,71 @@ private fun GroupSettingsRow(
                 text = value,
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
             Spacer(modifier = Modifier.width(8.dp))
         }
         Text(
             text = ">"
         )
+    }
+}
+
+@Composable
+private fun GroupChatSettingsPage(
+    isGroupLeader: Boolean,
+    groupChatEnabled: Boolean,
+    onGroupChatEnabledChange: (Boolean) -> Unit,
+    onBack: () -> Unit
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Box(modifier = Modifier.fillMaxWidth()
+            .padding(16.dp)
+        ) {
+            IconButton(onClick = onBack,
+                modifier = Modifier.align(Alignment.CenterStart)
+            ) {
+                Text("<")
+            }
+            Text(
+                text = "Group chat settings",
+                modifier = Modifier.align(Alignment.Center),
+                style = MaterialTheme.typography.titleLarge
+            )
+        }
+        Column(modifier = Modifier.fillMaxWidth()
+            .padding(horizontal = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text(
+                text = "Group chat",
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Card(modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(16.dp)
+            ) {
+                Row(modifier = Modifier.fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Group chat",
+                        modifier = Modifier.weight(1f),
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    Switch(
+                        checked = groupChatEnabled,
+                        onCheckedChange = onGroupChatEnabledChange,
+                        enabled = isGroupLeader
+                    )
+                }
+            }
+        }
     }
 }
 
