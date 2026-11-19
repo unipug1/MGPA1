@@ -66,6 +66,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.OutlinedButton
 import java.time.DayOfWeek
 import java.time.format.DateTimeFormatter
 import java.time.temporal.TemporalAdjusters
@@ -1230,7 +1231,9 @@ private fun GroupHomePage(
                     )
                 }
                 "Invite" -> {
-
+                    GroupInvitePage(
+                        group = group
+                    )
                 }
             }
         }
@@ -1530,6 +1533,78 @@ private fun GroupRankingRow(
                 modifier = Modifier.fillMaxWidth()
             )
         }
+    }
+}
+
+@Composable
+private fun GroupInvitePage(
+    group: Group
+) {
+    Column(modifier = Modifier.fillMaxSize()
+        .padding(16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Text(
+            text = "Invite friends",
+            style = MaterialTheme.typography.titleLarge,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+        Surface(modifier = Modifier.size(200.dp),
+            shape = RoundedCornerShape(12.dp),
+            color = MaterialTheme.colorScheme.surfaceVariant
+        ) {
+            Box(contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = "QR Code",
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+        }
+        Text(
+            text = "Invitation link",
+            modifier = Modifier.fillMaxWidth(),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Row(modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Button(onClick = {
+
+                },
+                modifier = Modifier.weight(1f),
+                enabled = false
+            ) {
+                Text(
+                    text = "Copy link",
+                    style = MaterialTheme.typography.labelLarge
+                )
+            }
+            OutlinedButton(onClick = {
+                },
+                modifier = Modifier.weight(1f),
+                enabled = false
+            ) {
+                Text(
+                    text = "Share link",
+                    style = MaterialTheme.typography.labelLarge
+                )
+            }
+        }
+        HorizontalDivider(modifier = Modifier.fillMaxWidth())
+        Text(
+            text = "Share this link with friends or groups you want to study with",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+        Text(
+            text = "They'll automatically join the group when they open the link",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }
 
