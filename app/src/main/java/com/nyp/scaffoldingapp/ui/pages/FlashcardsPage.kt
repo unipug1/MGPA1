@@ -68,7 +68,6 @@ fun FlashcardsPage(
                         style = MaterialTheme.typography.bodyLarge
                     )
                 }
-
                 DropdownMenu(
                     expanded = newOptionsExpanded,
                     onDismissRequest = {
@@ -133,6 +132,16 @@ fun FlashcardsPage(
             .weight(1f),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
+            item(key = "folders_header") {
+                Text(
+                    text = "Folders",
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.padding(
+                        horizontal = 16.dp,
+                        vertical = 8.dp
+                    )
+                )
+            }
             items(items = folders, key = {it.id}) { folder ->
                 var folderOptionsExpanded by rememberSaveable { mutableStateOf(false) }
                 Card(modifier = Modifier.fillMaxWidth()
@@ -183,6 +192,16 @@ fun FlashcardsPage(
                         }
                     }
                 }
+            }
+            item(key = "decks_header") {
+                Text(
+                    text = "Decks",
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.padding(
+                        horizontal = 16.dp,
+                        vertical = 8.dp
+                    )
+                )
             }
             items(items = decks.filter { it.folderId == null }, key = { it.id }) { deck ->
                 var deckOptionsExpanded by rememberSaveable { mutableStateOf(false) }
@@ -368,8 +387,19 @@ private fun AddFolderDialog(
                                         }
                                     }
                                 )
-                                Spacer(Modifier.width(16.dp))
-                                Text(text = deck.title)
+                                Spacer(Modifier.width(12.dp))
+                                Column(modifier = Modifier.weight(1f)
+                                ) {
+                                    Text(
+                                        text = deck.title,
+                                        style = MaterialTheme.typography.titleMedium
+                                    )
+                                    Text(
+                                        text = deck.author,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
                             }
                         }
                     }
