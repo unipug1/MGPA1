@@ -31,7 +31,6 @@ fun FlashcardsPage(
     var showAddDeckDialog by rememberSaveable { mutableStateOf(false) }
     var showAddFolderDialog by rememberSaveable { mutableStateOf(false) }
     var showArchived by rememberSaveable { mutableStateOf(false) }
-    var folderOptionsExpanded by rememberSaveable { mutableStateOf(false) }
 
     Column(modifier = modifier.fillMaxSize()
     ) {
@@ -77,7 +76,7 @@ fun FlashcardsPage(
                     }
                 ) {
                     DropdownMenuItem(
-                        text = { Text("Add flashcards") },
+                        text = { Text("Add deck") },
                         onClick = {
                             newOptionsExpanded = false
                             showAddDeckDialog = true
@@ -135,6 +134,7 @@ fun FlashcardsPage(
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             items(items = folders, key = {it.id}) { folder ->
+                var folderOptionsExpanded by rememberSaveable { mutableStateOf(false) }
                 Card(modifier = Modifier.fillMaxWidth()
                     .padding(horizontal = 16.dp)
                 ) {
@@ -184,6 +184,64 @@ fun FlashcardsPage(
                     }
                 }
             }
+            items(items = decks.filter { it.folderId == null }, key = { it.id }) { deck ->
+                var deckOptionsExpanded by rememberSaveable { mutableStateOf(false) }
+                Card(modifier = Modifier.fillMaxWidth()
+                    .padding(horizontal = 16.dp)
+                ) {
+                    Row(modifier = Modifier.fillMaxWidth()
+                        .padding(16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)
+                        ) {
+                            Text(deck.title)
+                            Text(deck.author)
+                        }
+                        Box {
+                            IconButton(onClick = { deckOptionsExpanded = true }
+                            ) {
+                                Text("⋮")
+                            }
+                            DropdownMenu(
+                                expanded = deckOptionsExpanded,
+                                onDismissRequest = {
+                                    deckOptionsExpanded = false
+                                }
+                            ) {
+                                DropdownMenuItem(
+                                    text = { Text("Edit") },
+                                    onClick = {
+                                        deckOptionsExpanded = false
+                                        // TODO: Edit deck
+                                    }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Move") },
+                                    onClick = {
+                                        deckOptionsExpanded = false
+                                        // TODO: Move into folder
+                                    }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Delete") },
+                                    onClick = {
+                                        deckOptionsExpanded = false
+                                        // TODO: Delete deck
+                                    }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Archive") },
+                                    onClick = {
+                                        deckOptionsExpanded = false
+                                        // TODO: Archive deck
+                                    }
+                                )
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 
@@ -195,6 +253,15 @@ fun FlashcardsPage(
                 val newFolderId = viewModel.addFolder(name, author)
                 viewModel.moveDecksToFolder(selectedDeckIds, newFolderId)
                 showAddFolderDialog = false
+            }
+        )
+    }
+    if (showAddDeckDialog) {
+        AddDeckDialog(
+            onDismiss = { showAddDeckDialog = false },
+            onSave = { title, author ->
+                viewModel.addDeck(title, author)
+                showAddDeckDialog = false
             }
         )
     }
@@ -312,7 +379,78 @@ private fun AddFolderDialog(
     }
 }
 
+@Composable
+private fun AddDeckDialog(
+    onDismiss: () -> Unit,
+    onSave: (String, String) -> Unit
+) {
+    var title by rememberSaveable { mutableStateOf("") }
+    var author by rememberSaveable { mutableStateOf("") }
 
+    Dialog(onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Surface(modifier = Modifier.fillMaxWidth()
+            .fillMaxHeight(0.95f),
+            shape = RoundedCornerShape(
+                topStart = 32.dp,
+                topEnd = 32.dp,
+                bottomStart = 24.dp,
+                bottomEnd = 24.dp
+            ),
+            color = MaterialTheme.colorScheme.surfaceContainerLow
+        ) {
+            Column(modifier = Modifier.fillMaxSize()
+                .padding(20.dp),
+                verticalArrangement = Arrangement.spacedBy(24.dp)
+            ) {
+                Row(modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    TextButton(onClick = onDismiss) {
+                        Text("✕",
+                            style = MaterialTheme.typography.titleLarge
+                        )
+                    }
+                    Spacer(Modifier.weight(1f))
+                    Text(
+                        text = "Add deck",
+                        style = MaterialTheme.typography.titleLarge
+                    )
+                    Spacer(Modifier.weight(1f))
+                    TextButton(
+                        onClick = {
+                            onSave(title.trim(), author.trim())
+                        },
+                        enabled = title.isNotBlank() && author.isNotBlank()
+                    ) {
+                        Text(
+                            "✓",
+                            style = MaterialTheme.typography.titleLarge
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                TextField(
+                    value = title,
+                    onValueChange = { title = it },
+                    placeholder = { Text("title") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    shape = RoundedCornerShape(12.dp)
+                )
+                TextField(
+                    value = author,
+                    onValueChange = { author = it },
+                    placeholder = { Text("Author") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    shape = RoundedCornerShape(12.dp)
+                )
+            }
+        }
+    }
+}
 
 // preview
 @Preview
