@@ -9,11 +9,13 @@ class FlashcardsViewModel : ViewModel() {
     private val _decks = MutableStateFlow<List<FlashcardDeck>>(emptyList())
     private val _folders = MutableStateFlow<List<FlashcardFolder>>(emptyList())
     private val _flashcards = MutableStateFlow<List<Flashcard>>(emptyList())
+    private val _memorisedCardIds = MutableStateFlow<Set<String>>(emptySet())
 
     // read only:
     val decks = _decks.asStateFlow()
     val folders = _folders.asStateFlow()
     val flashcards = _flashcards.asStateFlow()
+    val memorisedCardIds = _memorisedCardIds.asStateFlow()
 
     fun addDeck(title: String, author: String): String {
         val newDeck = FlashcardDeck(
@@ -62,6 +64,8 @@ class FlashcardsViewModel : ViewModel() {
         _flashcards.value = _flashcards.value.filter { flashcard ->
             flashcard.id != flashcardId
         }
+
+        _memorisedCardIds.value -= flashcardId
     }
 
     fun updateFlashcard(flashcardId: String, type: CardType, question: String, answer: String) {
@@ -75,6 +79,15 @@ class FlashcardsViewModel : ViewModel() {
             } else {
                 flashcard
             }
+        }
+    }
+
+    fun setCardMemorised(flashcardId: String, isMemorised: Boolean
+    ) {
+        _memorisedCardIds.value = if (isMemorised) {
+            _memorisedCardIds.value + flashcardId
+        } else {
+            _memorisedCardIds.value - flashcardId
         }
     }
 }

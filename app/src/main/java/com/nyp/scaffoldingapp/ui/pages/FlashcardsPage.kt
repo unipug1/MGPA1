@@ -16,6 +16,11 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.collectAsState
 import androidx.compose.ui.window.DialogProperties
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.runtime.remember
 
 @Composable
 fun FlashcardsPage(
@@ -26,22 +31,62 @@ fun FlashcardsPage(
     val decks by viewModel.decks.collectAsState()
     val folders by viewModel.folders.collectAsState()
     val flashcards by viewModel.flashcards.collectAsState()
+    val memorisedCardIds by viewModel.memorisedCardIds.collectAsState()
 
     var newOptionsExpanded by rememberSaveable { mutableStateOf(false) }
-    var moreOptionsExpanded by rememberSaveable { mutableStateOf(false) }
     var showAddDeckDialog by rememberSaveable { mutableStateOf(false) }
     var showAddFolderDialog by rememberSaveable { mutableStateOf(false) }
     var showCardEditor by rememberSaveable { mutableStateOf(false) }
-    var showArchived by rememberSaveable { mutableStateOf(false) }
     var editingFlashcardId by rememberSaveable { mutableStateOf<String?>(null) }
+
+    var showMemoriseSetup by rememberSaveable { mutableStateOf(false) }
+    var showMemorisePage by rememberSaveable { mutableStateOf(false) }
+    var memoriseUnmemorisedOnly by rememberSaveable { mutableStateOf(true) }
+    var memoriseRandomOrder by rememberSaveable { mutableStateOf(false) }
 
     var selectedDeckId by rememberSaveable { mutableStateOf<String?>(null) }
     val selectedDeck = decks.firstOrNull { it.id == selectedDeckId }
     val deckFlashcards = flashcards.filter { it.deckId == selectedDeckId }
     val editingFlashcard = deckFlashcards.firstOrNull { it.id == editingFlashcardId }
 
+    val unmemorisedCardCount = deckFlashcards.count { flashcard ->
+        flashcard.id !in memorisedCardIds
+    }
+
     if (selectedDeck != null) {
-        if (showCardEditor) {
+        if (showMemorisePage) {
+            val cardsToMemorise = remember(selectedDeck.id) {
+                val filteredCards = if (memoriseUnmemorisedOnly) {
+                    deckFlashcards.filter { flashcard ->
+                        flashcard.id !in memorisedCardIds
+                    }
+                } else {
+                    deckFlashcards
+                }
+
+                if (memoriseRandomOrder) {
+                    filteredCards.shuffled()
+                } else {
+                    filteredCards
+                }
+            }
+            MemorisePage(
+                flashcards = cardsToMemorise,
+                onBack = {
+                    showMemorisePage = false
+                },
+                onFinish = { results ->
+                    results.forEach { (flashcardId, isMemorised) ->
+                        viewModel.setCardMemorised(
+                            flashcardId = flashcardId,
+                            isMemorised = isMemorised
+                        )
+                    }
+
+                    showMemorisePage = false
+                }
+            )
+        } else if (showCardEditor) {
             CardEditorPage(
                 deck = selectedDeck,
                 viewModel = viewModel,
@@ -52,6 +97,7 @@ fun FlashcardsPage(
             DeckDetailPage(
                 deck = selectedDeck,
                 flashcards = deckFlashcards,
+                memorisedCardIds = memorisedCardIds,
                 onBack = {
                     selectedDeckId = null
                     showCardEditor = false
@@ -66,7 +112,8 @@ fun FlashcardsPage(
                 onEditCard = { flashcardId ->
                     editingFlashcardId = flashcardId
                     showCardEditor = true
-                }
+                },
+                onMemorise = { showMemoriseSetup = true }
             )
         }
     } else {
@@ -128,42 +175,6 @@ fun FlashcardsPage(
                         )
                     }
                 }
-                Box {
-                    FilledTonalButton(
-                        onClick = { moreOptionsExpanded = true },
-                        contentPadding = PaddingValues(horizontal = 12.dp)
-                    ) {
-                        Text("···")
-                    }
-                    DropdownMenu(
-                        expanded = moreOptionsExpanded,
-                        onDismissRequest = {
-                            moreOptionsExpanded = false
-                        }
-                    ) {
-                        DropdownMenuItem(
-                            text = { Text("Sort by") },
-                            onClick = {
-                                moreOptionsExpanded = false
-                                // TODO: Sorting
-                            }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("Archived") },
-                            onClick = {
-                                moreOptionsExpanded = false
-                                showArchived = true
-                            }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("List") },
-                            onClick = {
-                                moreOptionsExpanded = false
-                                // TODO: Switch list/grid
-                            }
-                        )
-                    }
-                }
             }
             Spacer(Modifier.height(16.dp))
             LazyColumn(modifier = Modifier.fillMaxWidth()
@@ -217,13 +228,6 @@ fun FlashcardsPage(
                                         onClick = {
                                             folderOptionsExpanded = false
                                             // TODO: Delete folder
-                                        }
-                                    )
-                                    DropdownMenuItem(
-                                        text = { Text("Archive") },
-                                        onClick = {
-                                            folderOptionsExpanded = false
-                                            // TODO: Archive folder
                                         }
                                     )
                                 }
@@ -290,13 +294,6 @@ fun FlashcardsPage(
                                             // TODO: Delete deck
                                         }
                                     )
-                                    DropdownMenuItem(
-                                        text = { Text("Archive") },
-                                        onClick = {
-                                            deckOptionsExpanded = false
-                                            // TODO: Archive deck
-                                        }
-                                    )
                                 }
                             }
                         }
@@ -324,6 +321,22 @@ fun FlashcardsPage(
                 val newDeckId = viewModel.addDeck(title, author)
                 showAddDeckDialog = false
                 selectedDeckId = newDeckId
+            }
+        )
+    }
+    if (showMemoriseSetup && selectedDeck != null) {
+        MemoriseSetupDialog(
+            cardCount = deckFlashcards.size,
+            unmemorisedCardCount = unmemorisedCardCount,
+            onDismiss = {
+                showMemoriseSetup = false
+            },
+            onStart = { unmemorisedOnly, randomOrder ->
+                memoriseUnmemorisedOnly = unmemorisedOnly
+                memoriseRandomOrder = randomOrder
+
+                showMemoriseSetup = false
+                showMemorisePage = true
             }
         )
     }
@@ -529,11 +542,23 @@ private fun AddDeckDialog(
 private fun DeckDetailPage(
     deck: FlashcardDeck,
     flashcards: List<Flashcard>,
+    memorisedCardIds: Set<String>,
     onBack: () -> Unit,
     onAddCard: () -> Unit,
     onDeleteCard: (String) -> Unit,
-    onEditCard: (String) -> Unit
+    onEditCard: (String) -> Unit,
+    onMemorise: () -> Unit
 ) {
+    val memorisedCount = flashcards.count { flashcard ->
+        flashcard.id in memorisedCardIds
+    }
+    val progress = if (flashcards.isNotEmpty()) {
+        memorisedCount.toFloat() / flashcards.size
+    } else {
+        0f
+    }
+    val progressPercentage = (progress * 100).toInt()
+
     Box(modifier = Modifier.fillMaxSize()
     ) {
         Column(modifier = Modifier.fillMaxSize()
@@ -570,49 +595,22 @@ private fun DeckDetailPage(
                                 contentAlignment = Alignment.Center
                             ) {
                                 CircularProgressIndicator(
-                                    progress = { 0f },
+                                    progress = { progress },
                                     modifier = Modifier.fillMaxSize(),
                                     strokeWidth = 12.dp,
                                     trackColor = MaterialTheme.colorScheme.surfaceVariant
                                 )
                                 Text(
-                                    text = "0%",
+                                    text = "$progressPercentage%",
                                     style = MaterialTheme.typography.headlineMedium
                                 )
                             }
                             Spacer(Modifier.height(12.dp))
                             FilledTonalButton(
-                                onClick = {
-                                    // TODO: Open Memorize page
-                                }
+                                onClick = onMemorise,
+                                enabled = flashcards.isNotEmpty()
                             ) {
-                                Text("Memorize")
-                            }
-                        }
-                        Column(modifier = Modifier.weight(1f),
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            Box(modifier = Modifier.size(120.dp),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                CircularProgressIndicator(
-                                    progress = { 0f },
-                                    modifier = Modifier.fillMaxSize(),
-                                    strokeWidth = 12.dp,
-                                    trackColor = MaterialTheme.colorScheme.surfaceVariant
-                                )
-                                Text(
-                                    text = "0",
-                                    style = MaterialTheme.typography.headlineMedium
-                                )
-                            }
-                            Spacer(Modifier.height(12.dp))
-                            FilledTonalButton(
-                                onClick = {
-                                    // TODO: Open Test page
-                                }
-                            ) {
-                                Text("Test")
+                                Text("Memorise")
                             }
                         }
                     }
@@ -628,13 +626,6 @@ private fun DeckDetailPage(
                     text = "Cards ${flashcards.size}",
                     style = MaterialTheme.typography.titleMedium
                 )
-                TextButton(
-                    onClick = {
-                        // TODO: Open card filter dropdown
-                    }
-                ) {
-                    Text("All ▼")
-                }
             }
             if (flashcards.isEmpty()) {
                 Box(modifier = Modifier.fillMaxWidth()
@@ -954,6 +945,372 @@ private fun FlashcardRow(
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
+        }
+    }
+}
+
+@Composable
+private fun MemoriseSetupDialog(
+    cardCount: Int,
+    unmemorisedCardCount: Int,
+    onDismiss: () -> Unit,
+    onStart: (
+        unmemorisedOnly: Boolean,
+        randomOrder: Boolean
+    ) -> Unit
+) {
+    var unmemorisedOnly by rememberSaveable { mutableStateOf(true) }
+    var randomOrder by rememberSaveable { mutableStateOf(false) }
+
+    AlertDialog(onDismissRequest = onDismiss,
+        title = { Text("Card range 1 ~ $cardCount") },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically
+                ) {
+                    RadioButton(
+                        selected = unmemorisedOnly,
+                        onClick = { unmemorisedOnly = true }
+                    )
+                    Text("Unmemorised cards ($unmemorisedCardCount)")
+                }
+                Row(verticalAlignment = Alignment.CenterVertically
+                ) {
+                    RadioButton(
+                        selected = !unmemorisedOnly,
+                        onClick = { unmemorisedOnly = false }
+                    )
+                    Text("All cards")
+                }
+                Spacer(Modifier.height(16.dp))
+                Text(
+                    text = "Card order",
+                    style = MaterialTheme.typography.titleMedium
+                )
+                Row(verticalAlignment = Alignment.CenterVertically
+                ) {
+                    RadioButton(
+                        selected = randomOrder,
+                        onClick = { randomOrder = true }
+                    )
+                    Text("Random")
+                }
+                Row(verticalAlignment = Alignment.CenterVertically
+                ) {
+                    RadioButton(
+                        selected = !randomOrder,
+                        onClick = { randomOrder = false }
+                    )
+                    Text("Original")
+                }
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = {
+                    onStart(
+                        unmemorisedOnly,
+                        randomOrder
+                    )
+                },
+                enabled = if (unmemorisedOnly) {
+                    unmemorisedCardCount > 0
+                } else {
+                    cardCount > 0
+                }
+            ) {
+                Text("Start")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
+}
+
+@Composable
+private fun MemorisePage(
+    flashcards: List<Flashcard>,
+    onBack: () -> Unit,
+    onFinish: (Map<String, Boolean>) -> Unit
+){
+    var showHelp by rememberSaveable { mutableStateOf(true) }
+    var currentCardIndex by rememberSaveable { mutableIntStateOf(0) }
+    var isAnswerRevealed by rememberSaveable { mutableStateOf(false) }
+    var knownCount by rememberSaveable { mutableIntStateOf(0) }
+    var unknownCount by rememberSaveable { mutableIntStateOf(0) }
+    val swipeThreshold = with(LocalDensity.current) { 100.dp.toPx() }
+    var swipeHistory by rememberSaveable { mutableStateOf(listOf<Boolean>()) }
+    var showResults by rememberSaveable { mutableStateOf(false) }
+
+    val cardCount = flashcards.size
+    val currentCard = flashcards.getOrNull(currentCardIndex)
+
+    fun handleSwipe(isKnown: Boolean) {
+        if (showHelp || showResults || currentCard == null) return
+
+        swipeHistory = swipeHistory + isKnown
+
+        if (isKnown) {
+            knownCount++
+        } else {
+            unknownCount++
+        }
+
+        currentCardIndex++
+        isAnswerRevealed = false
+
+        if (currentCardIndex >= cardCount) {
+            showResults = true
+        }
+    }
+    fun undoSwipe() {
+        if (swipeHistory.isEmpty()) return
+
+        val lastSwipeWasKnown = swipeHistory.last()
+
+        if (lastSwipeWasKnown) {
+            knownCount--
+        } else {
+            unknownCount--
+        }
+
+        swipeHistory = swipeHistory.dropLast(1)
+
+        currentCardIndex--
+        isAnswerRevealed = false
+        showHelp = false
+    }
+
+    val cardTypeLabel = when (currentCard?.type) {
+        CardType.WORD -> "Word"
+        CardType.QUESTION_ANSWER -> "Q&A"
+        CardType.TRUE_FALSE -> "True or False"
+        CardType.FILL_IN_BLANK -> "Fill in the Blank"
+        null -> ""
+    }
+
+    if (showResults) {
+        MemoriseResultsPage(
+            knownCount = knownCount,
+            unknownCount = unknownCount,
+            onDone = {
+                val results = flashcards
+                    .take(swipeHistory.size)
+                    .mapIndexed { index, flashcard ->
+                        flashcard.id to swipeHistory[index]
+                    }
+                    .toMap()
+
+                onFinish(results)
+            }
+        )
+    } else {
+        Column(modifier = Modifier.fillMaxSize()
+        ) {
+            Box(modifier = Modifier.fillMaxWidth()
+                .height(64.dp)
+            ) {
+                IconButton(
+                    onClick = onBack,
+                    modifier = Modifier.align(Alignment.CenterStart)
+                ) {
+                    Text("<")
+                }
+                Text(
+                    text = "$currentCardIndex/$cardCount",
+                    modifier = Modifier.align(Alignment.Center),
+                    style = MaterialTheme.typography.titleLarge
+                )
+            }
+            HorizontalDivider()
+            Row(modifier = Modifier.fillMaxWidth()
+                .padding(16.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "✓ $knownCount",
+                    color = MaterialTheme.colorScheme.primary,
+                    style = MaterialTheme.typography.titleMedium
+                )
+                Text(
+                    text = if (showHelp) "Help" else cardTypeLabel,
+                    style = MaterialTheme.typography.titleMedium
+                )
+                Text(
+                    text = "$unknownCount ?",
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.titleMedium
+                )
+            }
+            // main card
+            Card(
+                onClick = {
+                    if (!showHelp && currentCard != null) {
+                        isAnswerRevealed = !isAnswerRevealed
+                    }
+                },
+                modifier = Modifier.fillMaxWidth()
+                    .weight(1f)
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
+                    .pointerInput(showHelp, currentCardIndex, swipeThreshold) {
+                        var totalDrag = 0f
+
+                        detectHorizontalDragGestures(
+                            onDragStart = {
+                                totalDrag = 0f
+                            },
+                            onHorizontalDrag = { change, dragAmount ->
+                                change.consume()
+                                totalDrag += dragAmount
+                            },
+                            onDragEnd = {
+                                if (totalDrag <= -swipeThreshold) {
+                                    handleSwipe(isKnown = true)
+                                } else if (totalDrag >= swipeThreshold) {
+                                    handleSwipe(isKnown = false)
+                                }
+
+                                totalDrag = 0f
+                            },
+                            onDragCancel = {
+                                totalDrag = 0f
+                            }
+                        )
+                    },
+                shape = RoundedCornerShape(16.dp)
+            ) {
+                Box(modifier = Modifier.fillMaxSize()
+                    .padding(24.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (showHelp) {
+                        Text(
+                            text = "Swipe known cards to the left and unknown cards to the right. Tap the card to reveal its meaning.",
+                            style = MaterialTheme.typography.bodyLarge
+                        )
+                    } else if (currentCard != null) {
+                        Text(
+                            text = if (isAnswerRevealed) {
+                                currentCard.answer
+                            } else {
+                                currentCard.question
+                            },
+                            style = MaterialTheme.typography.headlineMedium,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
+                }
+            }
+            Row(modifier = Modifier.fillMaxWidth()
+                .padding(16.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                TextButton(
+                    onClick = {
+                        showHelp = !showHelp
+                        isAnswerRevealed = false
+                    }
+                ) {
+                    Text(if (showHelp) "Continue" else "Help")
+                }
+
+                TextButton(
+                    onClick = {
+                        undoSwipe()
+                    },
+                    enabled = swipeHistory.isNotEmpty()
+                ) {
+                    Text("↶ Undo")
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MemoriseResultsPage(
+    knownCount: Int,
+    unknownCount: Int,
+    onDone: () -> Unit
+) {
+    val totalCards = knownCount + unknownCount
+    val accuracy = if (totalCards > 0) {
+        knownCount * 100 / totalCards
+    } else {
+        0
+    }
+
+    Column(modifier = Modifier.fillMaxSize()
+        .padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(24.dp)
+    ) {
+        Text(
+            text = "Memorise results",
+            style = MaterialTheme.typography.titleLarge
+        )
+        Spacer(Modifier.height(24.dp))
+        Text(
+            text = "Session complete!",
+            style = MaterialTheme.typography.headlineMedium
+        )
+        Text(
+            text = "You have reviewed all $totalCards cards.",
+            style = MaterialTheme.typography.bodyLarge
+        )
+        Row(modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(16.dp)
+        ) {
+            Card(modifier = Modifier.weight(1f)
+            ) {
+                Column(modifier = Modifier.padding(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = "$knownCount",
+                        style = MaterialTheme.typography.headlineLarge,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+
+                    Text("Known")
+                }
+            }
+
+            Card(modifier = Modifier.weight(1f)
+            ) {
+                Column(modifier = Modifier.padding(24.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        text = "$unknownCount",
+                        style = MaterialTheme.typography.headlineLarge,
+                        color = MaterialTheme.colorScheme.error
+                    )
+
+                    Text("Unknown")
+                }
+            }
+        }
+        Text(
+            text = "$accuracy%",
+            style = MaterialTheme.typography.displayMedium
+        )
+        Text(
+            text = "Session accuracy",
+            style = MaterialTheme.typography.bodyMedium
+        )
+        Spacer(Modifier.weight(1f))
+        Button(
+            onClick = onDone,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text("Done")
         }
     }
 }
