@@ -25,23 +25,50 @@ fun FlashcardsPage(
 ) {
     val decks by viewModel.decks.collectAsState()
     val folders by viewModel.folders.collectAsState()
-
-    var selectedDeckId by rememberSaveable { mutableStateOf<String?>(null) }
-    val selectedDeck = decks.firstOrNull { it.id == selectedDeckId }
+    val flashcards by viewModel.flashcards.collectAsState()
 
     var newOptionsExpanded by rememberSaveable { mutableStateOf(false) }
     var moreOptionsExpanded by rememberSaveable { mutableStateOf(false) }
     var showAddDeckDialog by rememberSaveable { mutableStateOf(false) }
     var showAddFolderDialog by rememberSaveable { mutableStateOf(false) }
+    var showCardEditor by rememberSaveable { mutableStateOf(false) }
     var showArchived by rememberSaveable { mutableStateOf(false) }
+    var editingFlashcardId by rememberSaveable { mutableStateOf<String?>(null) }
+
+    var selectedDeckId by rememberSaveable { mutableStateOf<String?>(null) }
+    val selectedDeck = decks.firstOrNull { it.id == selectedDeckId }
+    val deckFlashcards = flashcards.filter { it.deckId == selectedDeckId }
+    val editingFlashcard = deckFlashcards.firstOrNull { it.id == editingFlashcardId }
 
     if (selectedDeck != null) {
-        DeckDetailPage(
-            deck = selectedDeck,
-            onBack = {
-                selectedDeckId = null
-            }
-        )
+        if (showCardEditor) {
+            CardEditorPage(
+                deck = selectedDeck,
+                viewModel = viewModel,
+                editingFlashcard = editingFlashcard,
+                onBack = { showCardEditor = false }
+            )
+        } else {
+            DeckDetailPage(
+                deck = selectedDeck,
+                flashcards = deckFlashcards,
+                onBack = {
+                    selectedDeckId = null
+                    showCardEditor = false
+                },
+                onAddCard = {
+                    editingFlashcardId = null
+                    showCardEditor = true
+                },
+                onDeleteCard = { flashcardId ->
+                    viewModel.deleteFlashcard(flashcardId)
+                },
+                onEditCard = { flashcardId ->
+                    editingFlashcardId = flashcardId
+                    showCardEditor = true
+                }
+            )
+        }
     } else {
         Column(modifier = modifier.fillMaxSize()
         ) {
@@ -501,7 +528,11 @@ private fun AddDeckDialog(
 @Composable
 private fun DeckDetailPage(
     deck: FlashcardDeck,
-    onBack: () -> Unit
+    flashcards: List<Flashcard>,
+    onBack: () -> Unit,
+    onAddCard: () -> Unit,
+    onDeleteCard: (String) -> Unit,
+    onEditCard: (String) -> Unit
 ) {
     Box(modifier = Modifier.fillMaxSize()
     ) {
@@ -594,7 +625,7 @@ private fun DeckDetailPage(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(
-                    text = "Cards 0",
+                    text = "Cards ${flashcards.size}",
                     style = MaterialTheme.typography.titleMedium
                 )
                 TextButton(
@@ -605,23 +636,324 @@ private fun DeckDetailPage(
                     Text("All ▼")
                 }
             }
-            Box(modifier = Modifier.fillMaxWidth()
-                .weight(1f),
-                contentAlignment = Alignment.Center
+            if (flashcards.isEmpty()) {
+                Box(modifier = Modifier.fillMaxWidth()
+                    .weight(1f),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text("Tap the + button to add flashcards.")
+                }
+            } else {
+                LazyColumn(modifier = Modifier.fillMaxWidth()
+                    .weight(1f),
+                    contentPadding = PaddingValues(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    itemsIndexed(items = flashcards, key = { _, flashcard -> flashcard.id }
+                    ) { index, flashcard ->
+                        FlashcardRow(
+                            flashcard = flashcard,
+                            cardNumber = index + 1,
+                            onEdit = {
+                                onEditCard(flashcard.id)
+                            },
+                            onDelete = {
+                                onDeleteCard(flashcard.id)
+                            }
+                        )
+                    }
+                }
+            }
+        }
+        FloatingActionButton(onClick = onAddCard,
+            modifier = Modifier.align(Alignment.BottomEnd)
+                .padding(16.dp)
+        ) {
+            Text("+")
+        }
+    }
+}
+
+@Composable
+private fun CardEditorPage(
+    deck: FlashcardDeck,
+    viewModel: FlashcardsViewModel,
+    onBack: () -> Unit,
+    editingFlashcard: Flashcard? = null
+) {
+    var selectedCardType by rememberSaveable(editingFlashcard?.id) {
+        mutableStateOf(editingFlashcard?.type ?: CardType.WORD)
+    }
+    var cardTypeExpanded by rememberSaveable { mutableStateOf(false) }
+    val cardTypeLabel = when (selectedCardType) {
+        CardType.WORD -> "Word"
+        CardType.QUESTION_ANSWER -> "Q&A"
+        CardType.TRUE_FALSE -> "True or False"
+        CardType.FILL_IN_BLANK -> "Fill in the Blank"
+    }
+    var question by rememberSaveable(editingFlashcard?.id) {
+        mutableStateOf(editingFlashcard?.question ?: "")
+    }
+    var answer by rememberSaveable(editingFlashcard?.id) {
+        mutableStateOf(editingFlashcard?.answer ?: "")
+    }
+    val canSave = question.isNotBlank() && answer.isNotBlank() &&
+            (selectedCardType != CardType.FILL_IN_BLANK || question.contains("____"))
+
+    Column(modifier = Modifier.fillMaxSize()
+    ) {
+        Box(modifier = Modifier.fillMaxWidth()
+            .padding(16.dp)
+        ) {
+            IconButton(onClick = onBack,
+                modifier = Modifier.align(Alignment.CenterStart)
+            ) {
+                Text("<")
+            }
+            Text(
+                text = if (editingFlashcard == null) "Add card" else "Edit card",
+                modifier = Modifier.align(Alignment.Center),
+                style = MaterialTheme.typography.titleLarge,
+                color = MaterialTheme.colorScheme.onBackground
+            )
+        }
+        Surface(modifier = Modifier.fillMaxWidth(),
+            shape = RoundedCornerShape(16.dp),
+            color = MaterialTheme.colorScheme.surface
+        ) {
+            Column(modifier = Modifier.padding(16.dp)
+            ) {
+                Box {
+                    TextButton(
+                        onClick = {
+                            cardTypeExpanded = true
+                        }
+                    ) {
+                        Text(cardTypeLabel)
+                        Text(" ▼")
+                    }
+                    DropdownMenu(
+                        expanded = cardTypeExpanded,
+                        onDismissRequest = {
+                            cardTypeExpanded = false
+                        }
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("Word") },
+                            onClick = {
+                                selectedCardType = CardType.WORD
+                                cardTypeExpanded = false
+                                question = ""
+                                answer = ""
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Q&A") },
+                            onClick = {
+                                selectedCardType = CardType.QUESTION_ANSWER
+                                cardTypeExpanded = false
+                                question = ""
+                                answer = ""
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("True or False") },
+                            onClick = {
+                                selectedCardType = CardType.TRUE_FALSE
+                                cardTypeExpanded = false
+                                question = ""
+                                answer = ""
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Fill in the blank") },
+                            onClick = {
+                                selectedCardType = CardType.FILL_IN_BLANK
+                                cardTypeExpanded = false
+                                question = ""
+                                answer = ""
+                            }
+                        )
+                    }
+                }
+                when (selectedCardType) {
+                    CardType.WORD -> {
+                        TextField(
+                            value = question,
+                            onValueChange = { question = it },
+                            placeholder = { Text("Word") },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        Spacer(Modifier.height(12.dp))
+                        TextField(
+                            value = answer,
+                            onValueChange = { answer = it },
+                            placeholder = { Text("Meaning") },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+
+                    CardType.QUESTION_ANSWER -> {
+                        TextField(
+                            value = question,
+                            onValueChange = { question = it },
+                            placeholder = { Text("Question") },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        Spacer(Modifier.height(12.dp))
+                        TextField(
+                            value = answer,
+                            onValueChange = { answer = it },
+                            placeholder = { Text("Answer") },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+
+                    CardType.TRUE_FALSE -> {
+                        TextField(
+                            value = question,
+                            onValueChange = { question = it },
+                            placeholder = { Text("Enter a statement") },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        Spacer(Modifier.height(12.dp))
+                        Row(modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            FilterChip(
+                                selected = answer == "true",
+                                onClick = { answer = "true" },
+                                label = { Text("True") },
+                                modifier = Modifier.weight(1f)
+                            )
+                            FilterChip(
+                                selected = answer == "false",
+                                onClick = { answer = "false" },
+                                label = { Text("False") },
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
+                    }
+
+                    CardType.FILL_IN_BLANK -> {
+                        TextField(
+                            value = question,
+                            onValueChange = { question = it },
+                            placeholder = { Text("Enter a sentence using ____ for the blank") },
+                            modifier = Modifier.fillMaxWidth(),
+                            minLines = 3
+                        )
+                        Spacer(Modifier.height(12.dp))
+                        TextField(
+                            value = answer,
+                            onValueChange = { answer = it },
+                            placeholder = { Text("Enter the missing word or phrase") },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                }
+            }
+        }
+        Spacer(Modifier.height(16.dp))
+        Button(
+            onClick = {
+                if (editingFlashcard == null) {
+                    viewModel.addFlashcard(
+                        deckId = deck.id,
+                        type = selectedCardType,
+                        question = question.trim(),
+                        answer = answer.trim()
+                    )
+                    question = ""
+                    answer = ""
+                } else {
+                    viewModel.updateFlashcard(
+                        flashcardId = editingFlashcard.id,
+                        type = selectedCardType,
+                        question = question.trim(),
+                        answer = answer.trim()
+                    )
+                    onBack()
+                }
+            },
+            enabled = canSave,
+            modifier = Modifier.fillMaxWidth()
+                .padding(horizontal = 16.dp)
+        ) {
+            Text(
+                if (editingFlashcard == null) "Save card" else "Save changes"
+            )
+        }
+    }
+}
+
+@Composable
+private fun FlashcardRow(
+    flashcard: Flashcard,
+    cardNumber: Int,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit
+) {
+    var optionsExpanded by rememberSaveable { mutableStateOf(false) }
+    val typeLabel = when (flashcard.type) {
+        CardType.WORD -> "Word"
+        CardType.QUESTION_ANSWER -> "Q&A"
+        CardType.TRUE_FALSE -> "True or False"
+        CardType.FILL_IN_BLANK -> "Fill in the Blank"
+    }
+
+    Card(modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Row(modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(
-                    text = "Tap the + button to add flashcards.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    text = "$cardNumber. $typeLabel",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = MaterialTheme.colorScheme.onSurface
                 )
-            }
-            FloatingActionButton(
-                onClick = {
-                    // TODO: Add card
+                Box {
+                    IconButton(
+                        onClick = { optionsExpanded = true }
+                    ) {
+                        Text("⋮")
+                    }
+                    DropdownMenu(
+                        expanded = optionsExpanded,
+                        onDismissRequest = {
+                            optionsExpanded = false
+                        }
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text("Edit") },
+                            onClick = {
+                                optionsExpanded = false
+                                onEdit()
+                            }
+                        )
+                        DropdownMenuItem(
+                            text = { Text("Delete") },
+                            onClick = {
+                                optionsExpanded = false
+                                onDelete()
+                            }
+                        )
+                    }
                 }
-            ) {
-                Text("+")
             }
+            Text(
+                text = flashcard.question,
+                style = MaterialTheme.typography.bodyLarge
+            )
+            Text(
+                text = flashcard.answer,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }

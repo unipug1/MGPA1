@@ -8,10 +8,12 @@ import java.util.UUID
 class FlashcardsViewModel : ViewModel() {
     private val _decks = MutableStateFlow<List<FlashcardDeck>>(emptyList())
     private val _folders = MutableStateFlow<List<FlashcardFolder>>(emptyList())
+    private val _flashcards = MutableStateFlow<List<Flashcard>>(emptyList())
 
     // read only:
     val decks = _decks.asStateFlow()
     val folders = _folders.asStateFlow()
+    val flashcards = _flashcards.asStateFlow()
 
     fun addDeck(title: String, author: String): String {
         val newDeck = FlashcardDeck(
@@ -41,6 +43,37 @@ class FlashcardsViewModel : ViewModel() {
                 deck.copy(folderId = folderId)
             } else {
                 deck
+            }
+        }
+    }
+
+    fun addFlashcard(deckId: String, type: CardType, question: String, answer: String) {
+        val newFlashcard = Flashcard(
+            id = UUID.randomUUID().toString(),
+            deckId = deckId,
+            type = type,
+            question = question,
+            answer = answer
+        )
+        _flashcards.value += newFlashcard
+    }
+
+    fun deleteFlashcard(flashcardId: String) {
+        _flashcards.value = _flashcards.value.filter { flashcard ->
+            flashcard.id != flashcardId
+        }
+    }
+
+    fun updateFlashcard(flashcardId: String, type: CardType, question: String, answer: String) {
+        _flashcards.value = _flashcards.value.map { flashcard ->
+            if (flashcard.id == flashcardId) {
+                flashcard.copy(
+                    type = type,
+                    question = question,
+                    answer = answer
+                )
+            } else {
+                flashcard
             }
         }
     }

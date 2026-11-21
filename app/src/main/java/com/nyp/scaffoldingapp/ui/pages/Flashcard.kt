@@ -12,3 +12,18 @@ data class FlashcardFolder(
     val name: String,
     val author: String
 )
+
+enum class CardType{
+    WORD,
+    QUESTION_ANSWER,
+    TRUE_FALSE,
+    FILL_IN_BLANK
+}
+
+data class Flashcard(
+    val id: String,
+    val deckId: String,
+    val type: CardType,
+    val question: String,
+    val answer: String
+)
