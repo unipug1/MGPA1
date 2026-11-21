@@ -18,6 +18,7 @@ data class Group(
     // join method: join now or join with password
     val joinMethod: String = "Join now",
     val password: String = "",
+    val isOwnedByMe: Boolean = false
 )
 
 data class GroupNotification(
@@ -44,4 +45,12 @@ data class GroupStudyRecord(
     val date: String,
     val studyTimeSeconds: Long,
     val dailyGoalSeconds: Long
+)
+
+data class GroupNotificationPreferences(
+    val groupChat: String = "On",
+    //val notice: String = "On",
+    //val comment: String = "On",
+    //val newPost: String = "On",
+    val newMember: String = "On"
 )

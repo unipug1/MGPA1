@@ -27,6 +27,7 @@ class GroupViewModel : ViewModel() {
                 capacity = 4,
                 ownerName = "_sze:(",
                 privacyStatus = "Public",
+                isOwnedByMe = true
             )
         )
     )
@@ -164,7 +165,8 @@ class GroupViewModel : ViewModel() {
     }
 
     fun createGroup(group: Group) {
-        _groups.value += group
+        val ownedGroup = group.copy(isOwnedByMe = true)
+        _groups.value += ownedGroup
     }
 
     fun joinGroup(group: Group): Boolean {
@@ -194,6 +196,57 @@ class GroupViewModel : ViewModel() {
         }
 
         return true
+    }
+
+    fun updateGroup(updatedGroup: Group) {
+        _groups.value = _groups.value.map { group ->
+            if (group.groupID == updatedGroup.groupID) {
+                updatedGroup
+            } else {
+                group
+            }
+        }
+        _discoverGroups.value = _discoverGroups.value.map { group ->
+            if (group.groupID == updatedGroup.groupID) {
+                updatedGroup
+            } else {
+                group
+            }
+        }
+    }
+
+    fun disbandGroup(groupID: String) {
+        _groups.value = _groups.value.filterNot {
+            it.groupID == groupID && it.isOwnedByMe
+        }
+        _discoverGroups.value = _discoverGroups.value.filterNot {
+            it.groupID == groupID && it.isOwnedByMe
+        }
+    }
+
+    fun leaveGroup(groupID: String) {
+        val group = _groups.value.firstOrNull {
+            it.groupID == groupID
+        } ?: return
+
+        // group leader cannot leave own group
+        if (group.isOwnedByMe) return
+
+        val updatedGroup = group.copy(
+            memberCount = (group.memberCount - 1).coerceAtLeast(0)
+        )
+        // remove from current user's joined groups
+        _groups.value = _groups.value.filterNot {
+            it.groupID == groupID
+        }
+        // update the group in discovery groups
+        _discoverGroups.value = _discoverGroups.value.map {
+            if (it.groupID == groupID) {
+                updatedGroup
+            } else {
+                it
+            }
+        }
     }
 
     fun addStudyRecord(studyRecord: GroupStudyRecord) {
