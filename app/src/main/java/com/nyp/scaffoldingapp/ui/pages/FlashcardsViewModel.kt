@@ -1,98 +1,45 @@
 package com.nyp.scaffoldingapp.ui.pages
 
-import androidx.compose.runtime.mutableStateListOf
 import androidx.lifecycle.ViewModel
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import java.util.UUID
-import androidx.compose.runtime.mutableStateMapOf
-import androidx.compose.runtime.mutableStateOf
 
 class FlashcardsViewModel : ViewModel() {
-    private val deckItems = mutableStateListOf<FlashcardDeck>()
-    private val cardItems = mutableStateListOf<StudyCard>()
-    private val memorisedById = mutableStateMapOf<String, Boolean>()
-    private val folderItems = mutableStateListOf<FlashcardFolder>()
+    private val _decks = MutableStateFlow<List<FlashcardDeck>>(emptyList())
+    private val _folders = MutableStateFlow<List<FlashcardFolder>>(emptyList())
 
-    val decks: List<FlashcardDeck> get() = deckItems
-    val cards: List<StudyCard> get() = cardItems
-    val folders: List<FlashcardFolder> get() = folderItems
+    // read only:
+    val decks = _decks.asStateFlow()
+    val folders = _folders.asStateFlow()
 
     fun addDeck(title: String, author: String) {
-        deckItems.add(
-            FlashcardDeck(
-                id = UUID.randomUUID().toString(),
-                title = title,
-                author = author
-            )
+        val newDeck = FlashcardDeck(
+            id = UUID.randomUUID().toString(),
+            title = title,
+            author = author
         )
+        _decks.value += newDeck
     }
 
-    fun addCard(deckId: String, front: String, back: String) {
-        cardItems.add(
-            StudyCard(
-                id = UUID.randomUUID().toString(),
-                deckId = deckId,
-                front = front,
-                back = back
-            )
-        )
-    }
-
-    fun editCard(id: String, front: String, back: String) {
-        val index = cardItems.indexOfFirst { it.id == id }
-        if (index >= 0) {
-            cardItems[index] = cardItems[index].copy(front = front, back = back)
-        }
-    }
-
-    fun deleteCard(id: String) {
-        memorisedById.remove(id)
-        cardItems.removeAll { it.id == id }
-    }
-
-    fun editDeck(id: String, title: String, author: String) {
-        val index = deckItems.indexOfFirst { it.id == id }
-        if (index >= 0) {
-            deckItems[index] = deckItems[index].copy(title = title, author = author)
-        }
-    }
-
-    fun deleteDeck(id: String) {
-        cardItems.filter { it.deckId == id }.forEach { card ->
-            memorisedById.remove(card.id)
-        }
-
-        cardItems.removeAll { it.deckId == id }
-        deckItems.removeAll { it.id == id }
-    }
-
-    fun isMemorised(cardId: String): Boolean = memorisedById[cardId] == true
-    fun applyReview(results: Map<String, Boolean>) {
-        memorisedById.putAll(results)
-    }
-
-    fun addFolder(name: String, author: String, selectedDeckIds: List<String> = emptyList()) {
-        val folder = FlashcardFolder(
+    fun addFolder(name: String, author: String): String {
+        val newFolder = FlashcardFolder(
             id = UUID.randomUUID().toString(),
             name = name,
             author = author
         )
-        folderItems.add(folder)
-        selectedDeckIds.forEach { deckId -> moveDeck(deckId, folder.id) }
+        _folders.value += newFolder
+
+        return newFolder.id
     }
 
-    fun moveDeck(deckId: String, folderId: String?) {
-        if (folderId != null && folderItems.none { it.id == folderId }) return
-
-        val index = deckItems.indexOfFirst { it.id == deckId }
-        if (index >= 0) {
-            deckItems[index] = deckItems[index].copy(folderId = folderId)
-        }
-    }
-
-    fun setDeckArchived(deckId: String, isArchived: Boolean) {
-        val index = deckItems.indexOfFirst { it.id == deckId }
-        if (index >= 0) {
-            deckItems[index] = deckItems[index].copy(isArchived = isArchived)
+    fun moveDecksToFolder(deckIds: List<String>, folderId: String) {
+        _decks.value = _decks.value.map { deck ->
+            if (deck.id in deckIds) {
+                deck.copy(folderId = folderId)
+            } else {
+                deck
+            }
         }
     }
 }

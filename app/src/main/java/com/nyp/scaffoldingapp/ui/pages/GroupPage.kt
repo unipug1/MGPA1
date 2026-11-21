@@ -129,8 +129,7 @@ fun GroupPage(
         }
     }
 
-    Column(modifier = modifier
-        .fillMaxSize()
+    Column(modifier = modifier.fillMaxSize()
         .background(MaterialTheme.colorScheme.background)
     ) {
         if (selectedHomeGroup != null) {
