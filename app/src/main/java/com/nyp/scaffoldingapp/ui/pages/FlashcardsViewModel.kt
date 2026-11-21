@@ -13,13 +13,15 @@ class FlashcardsViewModel : ViewModel() {
     val decks = _decks.asStateFlow()
     val folders = _folders.asStateFlow()
 
-    fun addDeck(title: String, author: String) {
+    fun addDeck(title: String, author: String): String {
         val newDeck = FlashcardDeck(
             id = UUID.randomUUID().toString(),
             title = title,
             author = author
         )
         _decks.value += newDeck
+
+        return newDeck.id
     }
 
     fun addFolder(name: String, author: String): String {
