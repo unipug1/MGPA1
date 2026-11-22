@@ -14,6 +14,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.nyp.scaffoldingapp.ui.KaiserClasses.EventViewModel
+import com.nyp.scaffoldingapp.ui.KaiserClasses.MusicViewModel
 import com.nyp.scaffoldingapp.ui.KaiserClasses.SubjectViewModel
 import com.nyp.scaffoldingapp.ui.pages.*
 import com.nyp.scaffoldingapp.ui.theme.ScaffoldingTheme
@@ -49,6 +50,7 @@ fun AppScaffold() {
 
     val subjViewModel: SubjectViewModel = viewModel()
     val eventViewModel: EventViewModel = viewModel()
+    val musicViewModel : MusicViewModel = viewModel()
 
     Scaffold(
         bottomBar = {
@@ -79,7 +81,7 @@ fun AppScaffold() {
             when (selectedTab) {
                 Tab.PAGE1 -> ToDoPage(subjViewModel ,Modifier)
                 Tab.PAGE2 -> CalendarPage(eventViewModel, Modifier)
-                Tab.PAGE3 -> Page3()
+                Tab.PAGE3 -> MusicPage(musicViewModel)
                 Tab.PAGE4 -> Page4()
             }
         }
