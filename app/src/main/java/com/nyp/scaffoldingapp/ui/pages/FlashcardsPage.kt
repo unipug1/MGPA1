@@ -35,19 +35,32 @@ fun FlashcardsPage(
 
     var newOptionsExpanded by rememberSaveable { mutableStateOf(false) }
     var showAddDeckDialog by rememberSaveable { mutableStateOf(false) }
+    var editingDeckId by rememberSaveable { mutableStateOf<String?>(null) }
+    val editingDeck = decks.firstOrNull { it.id == editingDeckId }
     var showAddFolderDialog by rememberSaveable { mutableStateOf(false) }
+    var editingFolderId by rememberSaveable { mutableStateOf<String?>(null) }
+    var deletingFolderId by rememberSaveable { mutableStateOf<String?>(null) }
+    val deletingFolder = folders.firstOrNull { it.id == deletingFolderId }
+    val editingFolder = folders.firstOrNull { it.id == editingFolderId }
     var showCardEditor by rememberSaveable { mutableStateOf(false) }
     var editingFlashcardId by rememberSaveable { mutableStateOf<String?>(null) }
+    var movingDeckId by rememberSaveable { mutableStateOf<String?>(null) }
+    val movingDeck = decks.firstOrNull { it.id == movingDeckId }
+    var selectedMoveFolderId by rememberSaveable { mutableStateOf<String?>(null) }
 
     var showMemoriseSetup by rememberSaveable { mutableStateOf(false) }
     var showMemorisePage by rememberSaveable { mutableStateOf(false) }
     var memoriseUnmemorisedOnly by rememberSaveable { mutableStateOf(true) }
     var memoriseRandomOrder by rememberSaveable { mutableStateOf(false) }
 
+    var selectedFolderId by rememberSaveable { mutableStateOf<String?>(null) }
+    val selectedFolder = folders.firstOrNull { it.id == selectedFolderId }
     var selectedDeckId by rememberSaveable { mutableStateOf<String?>(null) }
     val selectedDeck = decks.firstOrNull { it.id == selectedDeckId }
     val deckFlashcards = flashcards.filter { it.deckId == selectedDeckId }
     val editingFlashcard = deckFlashcards.firstOrNull { it.id == editingFlashcardId }
+    var deletingDeckId by rememberSaveable { mutableStateOf<String?>(null) }
+    val deletingDeck = decks.firstOrNull { it.id == deletingDeckId }
 
     val unmemorisedCardCount = deckFlashcards.count { flashcard ->
         flashcard.id !in memorisedCardIds
@@ -116,6 +129,73 @@ fun FlashcardsPage(
                 onMemorise = { showMemoriseSetup = true }
             )
         }
+    } else if (selectedFolder != null) {
+        val folderDecks = decks.filter { deck -> deck.folderId == selectedFolder.id }
+        Column(modifier = modifier.fillMaxSize()
+        ) {
+            Box(modifier = Modifier.fillMaxWidth()
+                .height(64.dp)
+            ) {
+                IconButton(
+                    onClick = {
+                        selectedFolderId = null
+                    },
+                    modifier = Modifier.align(Alignment.CenterStart)
+                ) {
+                    Text("<")
+                }
+                Text(
+                    text = selectedFolder.name,
+                    style = MaterialTheme.typography.titleLarge,
+                    color = MaterialTheme.colorScheme.onBackground,
+                    modifier = Modifier.align(Alignment.Center)
+                )
+            }
+            Spacer(Modifier.height(16.dp))
+            Text(
+                text = "Decks (${folderDecks.size})",
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.padding(
+                    horizontal = 16.dp,
+                    vertical = 8.dp
+                )
+            )
+            if (folderDecks.isEmpty()) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = "No decks in this folder.",
+                        style = MaterialTheme.typography.bodyLarge
+                    )
+                }
+            } else {
+                LazyColumn(modifier = Modifier.fillMaxWidth()
+                    .weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    items(items = folderDecks, key = { it.id }) { deck ->
+                        DeckRow(deck = deck,
+                            onOpen = {
+                                selectedDeckId = deck.id
+                            },
+                            onEdit = {
+                                editingDeckId = deck.id
+                                showAddDeckDialog = true
+                            },
+                            onMove = {
+                                movingDeckId = deck.id
+                                selectedMoveFolderId = deck.folderId
+                            },
+                            onDelete = {
+                                deletingDeckId = deck.id
+                            }
+                        )
+                    }
+                }
+            }
+        }
     } else {
         Column(modifier = modifier.fillMaxSize()
         ) {
@@ -163,6 +243,7 @@ fun FlashcardsPage(
                             text = { Text("Add deck") },
                             onClick = {
                                 newOptionsExpanded = false
+                                editingDeckId = null
                                 showAddDeckDialog = true
                             }
                         )
@@ -170,6 +251,7 @@ fun FlashcardsPage(
                             text = { Text("Add folder") },
                             onClick = {
                                 newOptionsExpanded = false
+                                editingFolderId = null
                                 showAddFolderDialog = true
                             }
                         )
@@ -194,7 +276,10 @@ fun FlashcardsPage(
                 items(items = folders, key = {it.id}) { folder ->
                     var folderOptionsExpanded by rememberSaveable { mutableStateOf(false) }
                     Card(modifier = Modifier.fillMaxWidth()
-                        .padding(horizontal = 16.dp)
+                        .padding(horizontal = 16.dp),
+                        onClick = {
+                            selectedFolderId = folder.id
+                        }
                     ) {
                         Row(modifier = Modifier.fillMaxWidth()
                             .padding(16.dp),
@@ -220,14 +305,16 @@ fun FlashcardsPage(
                                         text = { Text("Edit") },
                                         onClick = {
                                             folderOptionsExpanded = false
-                                            // TODO: Edit folder
+                                            editingFolderId = folder.id
+                                            showAddFolderDialog = true
                                         }
                                     )
                                     DropdownMenuItem(
                                         text = { Text("Delete") },
                                         onClick = {
                                             folderOptionsExpanded = false
-                                            // TODO: Delete folder
+                                            folderOptionsExpanded = false
+                                            deletingFolderId = folder.id
                                         }
                                     )
                                 }
@@ -246,58 +333,22 @@ fun FlashcardsPage(
                     )
                 }
                 items(items = decks.filter { it.folderId == null }, key = { it.id }) { deck ->
-                    var deckOptionsExpanded by rememberSaveable { mutableStateOf(false) }
-                    Card(modifier = Modifier.fillMaxWidth()
-                        .padding(horizontal = 16.dp),
-                        onClick = {
+                    DeckRow(deck = deck,
+                        onOpen = {
                             selectedDeckId = deck.id
+                        },
+                        onEdit = {
+                            editingDeckId = deck.id
+                            showAddDeckDialog = true
+                        },
+                        onMove = {
+                            movingDeckId = deck.id
+                            selectedMoveFolderId = deck.folderId
+                        },
+                        onDelete = {
+                            deletingDeckId = deck.id
                         }
-                    ) {
-                        Row(modifier = Modifier.fillMaxWidth()
-                            .padding(16.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column(modifier = Modifier.weight(1f)
-                            ) {
-                                Text(deck.title)
-                                Text(deck.author)
-                            }
-                            Box {
-                                IconButton(onClick = { deckOptionsExpanded = true }
-                                ) {
-                                    Text("⋮")
-                                }
-                                DropdownMenu(
-                                    expanded = deckOptionsExpanded,
-                                    onDismissRequest = {
-                                        deckOptionsExpanded = false
-                                    }
-                                ) {
-                                    DropdownMenuItem(
-                                        text = { Text("Edit") },
-                                        onClick = {
-                                            deckOptionsExpanded = false
-                                            // TODO: Edit deck
-                                        }
-                                    )
-                                    DropdownMenuItem(
-                                        text = { Text("Move") },
-                                        onClick = {
-                                            deckOptionsExpanded = false
-                                            // TODO: Move into folder
-                                        }
-                                    )
-                                    DropdownMenuItem(
-                                        text = { Text("Delete") },
-                                        onClick = {
-                                            deckOptionsExpanded = false
-                                            // TODO: Delete deck
-                                        }
-                                    )
-                                }
-                            }
-                        }
-                    }
+                    )
                 }
             }
         }
@@ -306,21 +357,76 @@ fun FlashcardsPage(
     if (showAddFolderDialog) {
         AddFolderDialog(
             availableDecks = decks,
-            onDismiss = { showAddFolderDialog = false },
-            onSave = { name, author, selectedDeckIds ->
-                val newFolderId = viewModel.addFolder(name, author)
-                viewModel.moveDecksToFolder(selectedDeckIds, newFolderId)
+            editingFolder = editingFolder,
+            onDismiss = {
                 showAddFolderDialog = false
+                editingFolderId = null
+            },
+            onSave = { name, author, selectedDeckIds ->
+
+                val folderId = editingFolderId
+
+                if (folderId == null) {
+                    // Create a new folder
+                    val newFolderId = viewModel.addFolder(
+                        name = name,
+                        author = author
+                    )
+
+                    viewModel.moveDecksToFolder(
+                        deckIds = selectedDeckIds,
+                        folderId = newFolderId
+                    )
+                } else {
+                    // Edit the existing folder
+                    viewModel.updateFolder(
+                        folderId = folderId,
+                        name = name,
+                        author = author
+                    )
+
+                    viewModel.updateFolderDecks(
+                        folderId = folderId,
+                        selectedDeckIds = selectedDeckIds
+                    )
+                }
+
+                showAddFolderDialog = false
+                editingFolderId = null
             }
         )
     }
     if (showAddDeckDialog) {
         AddDeckDialog(
-            onDismiss = { showAddDeckDialog = false },
-            onSave = { title, author ->
-                val newDeckId = viewModel.addDeck(title, author)
+            editingDeck = editingDeck,
+
+            onDismiss = {
                 showAddDeckDialog = false
-                selectedDeckId = newDeckId
+                editingDeckId = null
+            },
+
+            onSave = { title, author ->
+                val deckId = editingDeckId
+
+                if (deckId == null) {
+                    // Create a new deck
+                    val newDeckId = viewModel.addDeck(
+                        title = title,
+                        author = author
+                    )
+
+                    selectedDeckId = newDeckId
+                } else {
+                    // Edit an existing deck
+                    viewModel.updateDeck(
+                        deckId = deckId,
+                        title = title,
+                        author = author
+                    )
+                }
+
+                showAddDeckDialog = false
+                editingDeckId = null
             }
         )
     }
@@ -340,18 +446,274 @@ fun FlashcardsPage(
             }
         )
     }
+    if (deletingFolder != null) {
+        AlertDialog(
+            onDismissRequest = { deletingFolderId = null },
+            title = { Text(deletingFolder.name) },
+            text = { Text("Are you sure you want to delete this folder?") },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        viewModel.deleteFolder(deletingFolder.id)
+                        deletingFolderId = null
+                    }
+                ) {
+                    Text("OK")
+                }
+            },
+            dismissButton = {
+                OutlinedButton(
+                    onClick = {
+                        deletingFolderId = null
+                    }
+                ) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+    if (deletingDeck != null) {
+        AlertDialog(
+            onDismissRequest = {
+                deletingDeckId = null
+            },
+
+            title = {
+                Text(
+                    text = deletingDeck.title,
+                    style = MaterialTheme.typography.titleLarge
+                )
+            },
+
+            text = {
+                Text(
+                    text = "Are you sure you want to delete this deck?"
+                )
+            },
+
+            confirmButton = {
+                Button(
+                    onClick = {
+                        viewModel.deleteDeck(deletingDeck.id)
+                        deletingDeckId = null
+                    }
+                ) {
+                    Text("OK")
+                }
+            },
+
+            dismissButton = {
+                OutlinedButton(
+                    onClick = {
+                        deletingDeckId = null
+                    }
+                ) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+    if (movingDeck != null) {
+        AlertDialog(
+            onDismissRequest = {
+                movingDeckId = null
+                selectedMoveFolderId = null
+            },
+            title = {
+                Text(
+                    text = "Move",
+                    style = MaterialTheme.typography.titleLarge
+                )
+            },
+            text = {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    // Option to move the deck outside folders
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        RadioButton(
+                            selected = selectedMoveFolderId == null,
+                            onClick = {
+                                selectedMoveFolderId = null
+                            }
+                        )
+
+                        Text(
+                            text = "Main library",
+                            style = MaterialTheme.typography.bodyLarge
+                        )
+                    }
+
+                    // Available folders
+                    folders.forEach { folder ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(
+                                selected = selectedMoveFolderId == folder.id,
+                                onClick = {
+                                    selectedMoveFolderId = folder.id
+                                }
+                            )
+
+                            Text(
+                                text = folder.name,
+                                style = MaterialTheme.typography.bodyLarge
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                Button(
+                    onClick = {
+                        val deckId = movingDeckId
+                        val folderId = selectedMoveFolderId
+
+                        if (deckId != null && folderId != null) {
+                            viewModel.moveDeckToFolder(
+                                deckId = deckId,
+                                folderId = folderId
+                            )
+                        }
+
+                        movingDeckId = null
+                        selectedMoveFolderId = null
+                    },
+                    enabled = selectedMoveFolderId != null &&
+                            selectedMoveFolderId != movingDeck.folderId
+                ) {
+                    Text("OK")
+                }
+            },
+
+            dismissButton = {
+                OutlinedButton(
+                    onClick = {
+                        movingDeckId = null
+                        selectedMoveFolderId = null
+                    }
+                ) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+}
+
+@Composable
+private fun DeckRow(
+    deck: FlashcardDeck,
+    onOpen: () -> Unit,
+    onEdit: () -> Unit,
+    onMove: () -> Unit,
+    onDelete: () -> Unit
+) {
+    var deckOptionsExpanded by rememberSaveable {
+        mutableStateOf(false)
+    }
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp),
+        onClick = onOpen
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(
+                modifier = Modifier.weight(1f)
+            ) {
+                Text(
+                    text = deck.title,
+                    style = MaterialTheme.typography.titleMedium
+                )
+
+                Text(
+                    text = deck.author,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+
+            Box {
+                IconButton(
+                    onClick = {
+                        deckOptionsExpanded = true
+                    }
+                ) {
+                    Text("⋮")
+                }
+
+                DropdownMenu(
+                    expanded = deckOptionsExpanded,
+                    onDismissRequest = {
+                        deckOptionsExpanded = false
+                    }
+                ) {
+                    DropdownMenuItem(
+                        text = { Text("Edit") },
+                        onClick = {
+                            deckOptionsExpanded = false
+                            onEdit()
+                        }
+                    )
+
+                    DropdownMenuItem(
+                        text = { Text("Move") },
+                        onClick = {
+                            deckOptionsExpanded = false
+                            onMove()
+                        }
+                    )
+
+                    DropdownMenuItem(
+                        text = { Text("Delete") },
+                        onClick = {
+                            deckOptionsExpanded = false
+                            onDelete()
+                        }
+                    )
+                }
+            }
+        }
+    }
 }
 
 @Composable
 private fun AddFolderDialog(
     availableDecks: List<FlashcardDeck>,
+    editingFolder: FlashcardFolder? = null,
     onDismiss: () -> Unit,
     onSave: (String, String, List<String>) -> Unit
 ) {
-    var name by rememberSaveable { mutableStateOf("") }
-    var author by rememberSaveable { mutableStateOf("") }
-
-    var selectedDeckIds by rememberSaveable { mutableStateOf(listOf<String>()) }
+    var name by rememberSaveable(editingFolder?.id) {
+        mutableStateOf(editingFolder?.name ?: "")
+    }
+    var author by rememberSaveable(editingFolder?.id) {
+        mutableStateOf(editingFolder?.author ?: "")
+    }
+    var selectedDeckIds by rememberSaveable(editingFolder?.id) {
+        mutableStateOf(
+            if (editingFolder != null) {
+                availableDecks
+                    .filter { deck ->
+                        deck.folderId == editingFolder.id
+                    }
+                    .map { deck -> deck.id }
+            } else {
+                emptyList<String>()
+            }
+        )
+    }
 
     Dialog(onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false)
@@ -380,7 +742,11 @@ private fun AddFolderDialog(
                     }
                     Spacer(Modifier.weight(1f))
                     Text(
-                        text = "New folder",
+                        text = if (editingFolder == null) {
+                            "New folder"
+                        } else {
+                            "Edit folder"
+                        },
                         style = MaterialTheme.typography.titleLarge
                     )
                     Spacer(Modifier.weight(1f))
@@ -419,7 +785,7 @@ private fun AddFolderDialog(
                 )
                 Spacer(Modifier.height(8.dp))
                 Text(
-                    text = "Select the flashcards to move to the folder.",
+                    text = "Select the decks to move to the folder.",
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurface
                 )
@@ -467,11 +833,16 @@ private fun AddFolderDialog(
 
 @Composable
 private fun AddDeckDialog(
+    editingDeck: FlashcardDeck? = null,
     onDismiss: () -> Unit,
     onSave: (String, String) -> Unit
 ) {
-    var title by rememberSaveable { mutableStateOf("") }
-    var author by rememberSaveable { mutableStateOf("") }
+    var title by rememberSaveable(editingDeck?.id) {
+        mutableStateOf(editingDeck?.title ?: "")
+    }
+    var author by rememberSaveable(editingDeck?.id) {
+        mutableStateOf(editingDeck?.author ?: "")
+    }
 
     Dialog(onDismissRequest = onDismiss,
         properties = DialogProperties(usePlatformDefaultWidth = false)
@@ -500,7 +871,11 @@ private fun AddDeckDialog(
                     }
                     Spacer(Modifier.weight(1f))
                     Text(
-                        text = "Add deck",
+                        text = if (editingDeck == null) {
+                            "Add deck"
+                        } else {
+                            "Edit deck"
+                        },
                         style = MaterialTheme.typography.titleLarge
                     )
                     Spacer(Modifier.weight(1f))

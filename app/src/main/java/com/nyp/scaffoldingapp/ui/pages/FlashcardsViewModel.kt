@@ -28,6 +28,44 @@ class FlashcardsViewModel : ViewModel() {
         return newDeck.id
     }
 
+    fun updateDeck(deckId: String, title: String, author: String) {
+        _decks.value = _decks.value.map { deck ->
+            if (deck.id == deckId) {
+                deck.copy(
+                    title = title,
+                    author = author
+                )
+            } else {
+                deck
+            }
+        }
+    }
+
+    fun deleteDeck(deckId: String) {
+        // Get the IDs of flashcards belonging to this deck
+        val flashcardIds = _flashcards.value
+            .filter { flashcard ->
+                flashcard.deckId == deckId
+            }
+            .map { flashcard ->
+                flashcard.id
+            }
+            .toSet()
+
+        // Delete the deck
+        _decks.value = _decks.value.filter { deck ->
+            deck.id != deckId
+        }
+
+        // Delete its flashcards
+        _flashcards.value = _flashcards.value.filter { flashcard ->
+            flashcard.deckId != deckId
+        }
+
+        // Remove memorisation progress for deleted flashcards
+        _memorisedCardIds.value -= flashcardIds
+    }
+
     fun addFolder(name: String, author: String): String {
         val newFolder = FlashcardFolder(
             id = UUID.randomUUID().toString(),
@@ -39,10 +77,65 @@ class FlashcardsViewModel : ViewModel() {
         return newFolder.id
     }
 
+    fun updateFolder(folderId: String, name: String, author: String) {
+        _folders.value = _folders.value.map { folder ->
+            if (folder.id == folderId) {
+                folder.copy(
+                    name = name,
+                    author = author
+                )
+            } else {
+                folder
+            }
+        }
+    }
+
+    fun updateFolderDecks(folderId: String, selectedDeckIds: List<String>) {
+        _decks.value = _decks.value.map { deck ->
+            when {
+                deck.id in selectedDeckIds -> {
+                    deck.copy(folderId = folderId)
+                }
+
+                deck.folderId == folderId -> {
+                    deck.copy(folderId = null)
+                }
+
+                else -> deck
+            }
+        }
+    }
+
     fun moveDecksToFolder(deckIds: List<String>, folderId: String) {
         _decks.value = _decks.value.map { deck ->
             if (deck.id in deckIds) {
                 deck.copy(folderId = folderId)
+            } else {
+                deck
+            }
+        }
+    }
+
+    fun moveDeckToFolder(deckId: String, folderId: String?) {
+        _decks.value = _decks.value.map { deck ->
+            if (deck.id == deckId) {
+                deck.copy(folderId = folderId)
+            } else {
+                deck
+            }
+        }
+    }
+
+    fun deleteFolder(folderId: String) {
+        // Remove the folder
+        _folders.value = _folders.value.filter { folder ->
+            folder.id != folderId
+        }
+
+        // Move its decks back to the main library
+        _decks.value = _decks.value.map { deck ->
+            if (deck.folderId == folderId) {
+                deck.copy(folderId = null)
             } else {
                 deck
             }
