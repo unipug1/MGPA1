@@ -1,7 +1,6 @@
 package com.nyp.scaffoldingapp.ui.pages
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.material3.*
@@ -225,26 +224,15 @@ private fun TimerHome(
             Spacer(Modifier.height(18.dp))
         }
 
-        Row(Modifier.fillMaxWidth()) {
-            listOf("Timer", "Books").forEach { label ->
-                val tabModifier = Modifier.weight(1f)
-                val canOpenBooks = label == "Books" && onOpenBooks != null
-
-                Column(
-                    modifier = if (canOpenBooks) {
-                        tabModifier.clickable { onOpenBooks.invoke() }
-                    } else {
-                        tabModifier
-                    },
-                    horizontalAlignment = Alignment.CenterHorizontally
+        Row(Modifier.fillMaxWidth()
+        ) {
+            Column(Modifier.fillMaxWidth(),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Box(Modifier.height(46.dp),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Box(Modifier.height(46.dp), contentAlignment = Alignment.Center) {
-                        Text(label, color = if (label == "Timer") YptInk else YptMuted)
-                    }
-                    Box(
-                        Modifier.width(34.dp).height(2.dp)
-                            .background(if (label == "Timer") YptInk else Color.Transparent)
-                    )
+                    Text("Timer", color = YptInk)
                 }
             }
         }
