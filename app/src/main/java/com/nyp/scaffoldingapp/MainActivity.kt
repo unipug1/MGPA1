@@ -1,15 +1,22 @@
 package com.nyp.scaffoldingapp
 
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.*
 import androidx.annotation.DrawableRes
+import androidx.annotation.RequiresApi
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.nyp.scaffoldingapp.ui.KaiserClasses.EventViewModel
+import com.nyp.scaffoldingapp.ui.KaiserClasses.MusicViewModel
+import com.nyp.scaffoldingapp.ui.KaiserClasses.SubjectViewModel
+import com.nyp.scaffoldingapp.ui.KaiserClasses.UserViewModel
 import com.nyp.scaffoldingapp.ui.pages.*
 import com.nyp.scaffoldingapp.ui.theme.ScaffoldingTheme
 
@@ -25,6 +32,7 @@ enum class Tab(val label: String, @DrawableRes val icon: Int) {
 }
 
 class MainActivity : ComponentActivity() {
+    @RequiresApi(Build.VERSION_CODES.O)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
@@ -35,10 +43,16 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+@RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun AppScaffold() {
     // rememberSaveable, not remember: the selected tab must survive a rotation.
     var selectedTab by rememberSaveable { mutableStateOf(Tab.PAGE1) }
+
+    val subjViewModel: SubjectViewModel = viewModel()
+    val eventViewModel: EventViewModel = viewModel()
+    val musicViewModel : MusicViewModel = viewModel()
+    val userViewModel : UserViewModel = viewModel()
 
     Scaffold(
         bottomBar = {
@@ -70,6 +84,9 @@ fun AppScaffold() {
                 Tab.PAGE1 -> HomePage(Modifier, HomeViewModel())
                 Tab.PAGE2 -> GroupPage(Modifier, GroupViewModel())
                 Tab.PAGE3 -> FlashcardsPage(Modifier, FlashcardsViewModel())
+                Tab.PAGE1 -> ToDoPage(subjViewModel ,Modifier)
+                Tab.PAGE2 -> CalendarPage(eventViewModel, Modifier)
+                Tab.PAGE3 -> MusicPage(musicViewModel)
                 Tab.PAGE4 -> Page4()
             }
         }
