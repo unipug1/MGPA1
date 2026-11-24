@@ -16,6 +16,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.nyp.scaffoldingapp.ui.KaiserClasses.EventViewModel
 import com.nyp.scaffoldingapp.ui.KaiserClasses.MusicViewModel
 import com.nyp.scaffoldingapp.ui.KaiserClasses.SubjectViewModel
+import com.nyp.scaffoldingapp.ui.KaiserClasses.UserViewModel
 import com.nyp.scaffoldingapp.ui.pages.*
 import com.nyp.scaffoldingapp.ui.theme.ScaffoldingTheme
 
@@ -51,6 +52,7 @@ fun AppScaffold() {
     val subjViewModel: SubjectViewModel = viewModel()
     val eventViewModel: EventViewModel = viewModel()
     val musicViewModel : MusicViewModel = viewModel()
+    val userViewModel : UserViewModel = viewModel()
 
     Scaffold(
         bottomBar = {

@@ -54,7 +54,9 @@ import kotlinx.coroutines.launch
 import androidx.lifecycle.viewModelScope
 import com.google.common.collect.SetMultimap
 import com.nyp.scaffoldingapp.R
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.time.DayOfWeek
@@ -98,6 +100,10 @@ class MusicViewModel : ViewModel() {
         return _musicPlaylists.value
     }
 
+    fun AddPlaylist(playlist : Playlist) {
+        _musicPlaylists.value = (musicPlaylists.value + playlist).toMutableList()
+    }
+
     fun AddToMusicList(song : Song) : MutableList<Song>{
         if (song in _musicList.value.songs){
             _musicList.value.songs = (musicList.value.songs - song).toMutableList()
@@ -118,7 +124,50 @@ class MusicViewModel : ViewModel() {
         _selectedMusic.value = song
     }
 
+    fun RemoveSongFromPlaylist(playlist: Playlist, song: Song) {
+        _musicPlaylists.update { currentPlaylists ->
+            currentPlaylists.map { currPlaylist ->
+                if (currPlaylist.id == playlist.id) {
+                    currPlaylist.copy(
+                        list = SongList(
+                            (currPlaylist.list.songs.filter {
+                                it != song
+                            }).toMutableList()
+                        )
+                    )
+                } else {
+                    currPlaylist
+                }
+
+            }.toMutableList()
+        }
+    }
+
+    fun AddSongTpPlaylist(playlist: Playlist, song: Song) {
+        _musicPlaylists.update { currentPlaylists ->
+            currentPlaylists.map { currPlaylist ->
+                if (currPlaylist.id == playlist.id) {
+                    currPlaylist.copy(
+                        list = SongList((currPlaylist.list.songs + song).toMutableList())
+                    )
+                } else {
+                    currPlaylist
+                }
+
+            }.toMutableList()
+        }
+    }
+
+    fun GetPlaylist(id: String?): Flow<Playlist?> {
+        return _musicPlaylists.map { playlists ->
+            playlists.firstOrNull({it.id == id})
+        }
+    }
+
     fun GetSongAtIndex(index : Int) : Song{
         return _musicList.value.songs[index]
+    }
+    fun GetSelectedSong() : Song?{
+        return _selectedMusic.value
     }
 }

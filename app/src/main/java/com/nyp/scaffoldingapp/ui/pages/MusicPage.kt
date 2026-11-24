@@ -25,21 +25,35 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.CheckCircleOutline
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Pause
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Shuffle
 import androidx.compose.material.icons.filled.SkipNext
 import androidx.compose.material.icons.filled.SkipPrevious
+import androidx.compose.material.icons.materialIcon
+import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.MutableLongState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -52,17 +66,22 @@ import androidx.compose.ui.graphics.Outline
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.DpOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.window.Popup
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.media3.common.MediaItem
 import androidx.media3.exoplayer.ExoPlayer
 import com.nyp.scaffoldingapp.R
 import com.nyp.scaffoldingapp.ui.KaiserClasses.MusicViewModel
+import com.nyp.scaffoldingapp.ui.KaiserClasses.Playlist
 import com.nyp.scaffoldingapp.ui.KaiserClasses.Song
+import com.nyp.scaffoldingapp.ui.KaiserClasses.SongList
+import kotlinx.coroutines.delay
 import java.io.File
 
 object MusicList{
@@ -185,7 +204,9 @@ fun BrowseMusic(viewModel: MusicViewModel, player : ExoPlayer, context : Context
                             Image(
                                 painter = painterResource(music.imgID),
                                 contentDescription = "Music Icon",
-                                modifier = Modifier.height(80.dp).padding(5.dp)
+                                modifier = Modifier
+                                    .height(80.dp)
+                                    .padding(5.dp)
                             )
                             Text(
                                 music.name,
@@ -201,79 +222,283 @@ fun BrowseMusic(viewModel: MusicViewModel, player : ExoPlayer, context : Context
 }
 
 @Composable
-fun DisplayMusicPlaylists(viewModel: MusicViewModel, context : Context, player : ExoPlayer, modifier : Modifier, onPlay : (Song)->Unit, onPlaylist : (List<Song>)->Unit){
-    var playlists = viewModel.GetPlaylists()
-    var openedPlaylistID by rememberSaveable() { mutableStateOf<String?>(null) }
-    var editPlaylistScreen by rememberSaveable() { mutableStateOf(false) }
+fun CreatePlaylistScreen(viewModel: MusicViewModel, onCreate : (Playlist)->Unit, onDismiss : ()->Unit, modifier : Modifier){
+    val songs = rememberSaveable() { mutableStateListOf<Song>() }
+    var name by rememberSaveable() { mutableStateOf("") }
+    var imgID by remember { mutableStateOf(R.drawable.default_icon) }
+    var addSongSearch by rememberSaveable() { mutableStateOf(false) }
+    var deleteSongDropdown by remember { mutableStateOf<Song?>(null) }
 
-    if (openedPlaylistID != null){
-        val playlist = viewModel.GetPlaylists().firstOrNull({ it.id == openedPlaylistID })
-        if (playlist == null)
-            return
-        Dialog(
-            onDismissRequest = {openedPlaylistID = null},
-            properties = DialogProperties(usePlatformDefaultWidth = false)
-        ) {
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth(0.95f)
-                    .fillMaxHeight(0.6f),
-                shape = RoundedCornerShape(20.dp)
-            ) {
-                LazyColumn(Modifier.fillMaxWidth(), userScrollEnabled = true){
-                    item(playlist.id) {
-                        Column() {
-                            Image(
-                                painter = painterResource(playlist.imgID),
-                                contentDescription = "Playlist Icon",
-                                modifier = Modifier.padding(5.dp)
-                            )
-                            Text(playlist.name)
-                            Row(horizontalArrangement = Arrangement.Center){
-                                Spacer(Modifier.weight(1f))
-                                IconButton(onClick = {
-                                    viewModel.SetMusicList(playlist.list.songs)
-                                    onPlaylist(viewModel.musicList.value.songs)}) {
-                                    Icon(
-                                        Icons.Filled.PlayArrow,
-                                        contentDescription = "Play"
-                                    )
-                                }
-                                Spacer(Modifier.weight(1f))
-                                IconButton(onClick = {
-                                    viewModel.SetMusicList(playlist.list.songs.shuffled())
-                                    onPlaylist(viewModel.musicList.value.songs)}) {
-                                    Icon(
-                                        Icons.Default.Shuffle,
-                                        contentDescription = "Shuffle"
-                                    )
-                                }
-                                Spacer(Modifier.weight(1f))
-                            }
+    if (!addSongSearch) {
+        Scaffold(
+            topBar = {
+                Row(Modifier.padding(30.dp)) {
+                    IconButton(
+                        onClick = { onDismiss() }
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
+                            contentDescription = "Back",
+                            tint = Color.Black
+                        )
+                    }
+                    Spacer(Modifier.weight(1f))
+                    Text("New Playlist", color = Color.Black)
+                    Spacer(Modifier.weight(1f))
+                    IconButton(
+                        onClick = {
+                            if (songs.size > 0 && name != "") onCreate(Playlist(SongList(songs.toMutableList()), name, imgID))
+                            onDismiss()}
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.CheckCircleOutline,
+                            contentDescription = "Back",
+                            tint = if (songs.size > 0 && name != "") Color.Green else Color.Gray
+                        )
+                    }
+                }
+
+            },
+            modifier = modifier
+        ) { paddingValues ->
+            Column(Modifier
+                .padding(paddingValues)
+                .padding(horizontal = 30.dp)) {
+                OutlinedTextField(value = name, onValueChange = { name = it })
+                LazyColumn(userScrollEnabled = true) {
+                    item() {
+                        Row(Modifier.fillMaxWidth()) {
+                            Button(
+                                onClick = { addSongSearch = true },
+                                modifier = Modifier
+                                    .size(30.dp),
+                                shape = RoundedCornerShape(3.dp),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = Color.Transparent,
+                                    contentColor = Color.Black
+                                ),
+                                border = BorderStroke(color = Color.Black, width = 2.dp),
+                                contentPadding = PaddingValues(0.dp)
+                            ) { Text(text = "+", fontSize = 24.sp) }
                         }
                     }
-                    items(playlist.list.songs){ music ->
+                    items(songs) { song ->
                         Row(Modifier.fillMaxWidth()) {
-                            Button(onClick = {
-                                onPlay(music)},
-                                colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent)
-                                ) {
-                                Image(
-                                    painter = painterResource(music.imgID),
-                                    contentDescription = "Music Icon",
-                                    modifier = Modifier.height(80.dp).padding(5.dp)
+                            Image(
+                                painter = painterResource(song.imgID),
+                                contentDescription = "Music Icon",
+                                modifier = Modifier
+                                    .height(80.dp)
+                                    .padding(5.dp)
+                            )
+                            Text(
+                                song.name,
+                                color = Color.Black,
+                                modifier = Modifier.padding(5.dp)
+                            )
+                            Spacer(Modifier.weight(1f))
+                            IconButton(onClick = { deleteSongDropdown = song}) {
+                                Icon(
+                                    imageVector = Icons.Default.MoreVert,
+                                    tint = Color.Black,
+                                    contentDescription = "Settings"
                                 )
-                                Text(
-                                    music.name,
-                                    color = Color.Black,
-                                    modifier = Modifier.padding(5.dp)
-                                )
+                            }
+                            DropdownMenu((deleteSongDropdown == song), {deleteSongDropdown = null}, offset = DpOffset(y = (0).dp, x = (-40).dp)){
+                                DropdownMenuItem(text = {Text("Remove")}, onClick = {songs.remove(song)})
+
                             }
                         }
                     }
                 }
             }
         }
+    }
+    else {
+        SelectSong({songs.add(it)}, {addSongSearch = false}, modifier)
+    }
+}
+
+@Composable
+fun SelectSong(onSelect: (Song) -> Unit, onDismiss: () -> Unit, modifier : Modifier){
+    var songs : List<Song> = listOf()
+    var selectedSong by remember { mutableStateOf<Song?>(null) }
+    Scaffold(
+        topBar = {
+            Column(modifier) {
+                Row(Modifier.padding(30.dp)) {
+                    IconButton(
+                        onClick = { onDismiss() }
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowLeft,
+                            contentDescription = "Back",
+                            tint = Color.Black
+                        )
+                    }
+                    Spacer(Modifier.weight(1f))
+                    Text("Select Song", color = Color.Black)
+                    Spacer(Modifier.weight(1f))
+                    IconButton(
+                        onClick = { selectedSong?.let{
+                            onSelect(it)
+                            onDismiss()
+                        } }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.CheckCircleOutline,
+                            contentDescription = "Back",
+                            tint = selectedSong?.let{Color.Green}?:Color.Gray
+                        )
+                    }
+                }
+                songs = MusicSearchBar(MusicList.musicList.toMutableList())
+            }
+        }
+    ){ paddingValues ->
+        LazyColumn(Modifier.padding(paddingValues)) {
+            items(songs){ song->
+                Button(onClick = { selectedSong = song }, colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent, contentColor = Color.Black)) {
+                    Row(Modifier.fillMaxWidth()) {
+                        Image(
+                            painter = painterResource(song.imgID),
+                            contentDescription = "Music Icon",
+                            modifier = Modifier
+                                .height(80.dp)
+                                .padding(5.dp)
+                        )
+                        Text(
+                            song.name,
+                            color = Color.Black,
+                            modifier = Modifier.padding(5.dp)
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun DisplayMusicPlaylists(viewModel: MusicViewModel, context : Context, player : ExoPlayer, modifier : Modifier, onPlay : (Song)->Unit, onPlaylist : (List<Song>)->Unit){
+    var playlists = viewModel.GetPlaylists()
+    var openedPlaylistID by rememberSaveable() { mutableStateOf<String?>(null) }
+    var editPlaylistScreen by rememberSaveable() { mutableStateOf(false) }
+
+    var deleteSongQueue by remember { mutableStateOf<Pair<Song, Playlist>?>(null) }
+
+    var deleteSongDropdown by remember { mutableStateOf<Song?>(null) }
+
+    val selectedPlaylist by viewModel.GetPlaylist(openedPlaylistID)
+        .collectAsStateWithLifecycle(initialValue = null)
+
+    if (editPlaylistScreen){
+        CreatePlaylistScreen(viewModel, {
+            viewModel.AddPlaylist(it)
+        },
+            {editPlaylistScreen = false},
+            modifier)
+    }
+    else if (openedPlaylistID != null && selectedPlaylist != null){
+        val playlist = selectedPlaylist!!
+        Scaffold(modifier = modifier,
+            topBar = {
+                IconButton(
+                    onClick = { openedPlaylistID = null }
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.KeyboardArrowDown,
+                        contentDescription = "Back",
+                        tint = Color.Black
+                    )
+                }
+            }
+        ) { paddingValues ->
+            LazyColumn(Modifier
+                .fillMaxWidth()
+                .padding(paddingValues), userScrollEnabled = true) {
+                item(playlist.id) {
+                    Column(
+                        Modifier.fillMaxWidth(),
+                        horizontalAlignment = Alignment.CenterHorizontally
+                    ) {
+                        Image(
+                            painter = painterResource(playlist.imgID),
+                            contentDescription = "Playlist Icon",
+                            modifier = Modifier.padding(5.dp)
+                        )
+                        Text(playlist.name)
+                        Row(horizontalArrangement = Arrangement.Center) {
+                            Spacer(Modifier.weight(1f))
+                            IconButton(onClick = {
+                                viewModel.SetMusicList(playlist.list.songs)
+                                onPlaylist(viewModel.musicList.value.songs)
+                            }) {
+                                Icon(
+                                    Icons.Filled.PlayArrow,
+                                    contentDescription = "Play"
+                                )
+                            }
+                            Spacer(Modifier.weight(1f))
+                            IconButton(onClick = {
+                                viewModel.SetMusicList(playlist.list.songs.shuffled())
+                                onPlaylist(viewModel.musicList.value.songs)
+                            }) {
+                                Icon(
+                                    Icons.Default.Shuffle,
+                                    contentDescription = "Shuffle"
+                                )
+                            }
+                            Spacer(Modifier.weight(1f))
+                        }
+                    }
+                }
+                items(playlist.list.songs) { song ->
+                    Row(Modifier.fillMaxWidth()) {
+                        Button(
+                            onClick = {
+                                onPlay(song)
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent)
+                        ) {
+                            Image(
+                                painter = painterResource(song.imgID),
+                                contentDescription = "Music Icon",
+                                modifier = Modifier
+                                    .height(80.dp)
+                                    .padding(5.dp)
+                            )
+                            Text(
+                                song.name,
+                                color = Color.Black,
+                                modifier = Modifier
+                                    .padding(5.dp),
+                                overflow = TextOverflow.Ellipsis
+                            )
+
+                        }
+                        Spacer(modifier = Modifier.weight(1f))
+                        IconButton(onClick = {
+                            deleteSongDropdown = song
+                        }) {
+                            Icon(
+                                imageVector = Icons.Default.MoreVert,
+                                tint = Color.Black,
+                                contentDescription = "Settings"
+                            )
+                        }
+                        DropdownMenu((deleteSongDropdown == song), {deleteSongDropdown = null}, offset = DpOffset(y = (-10).dp, x = (-40).dp)){
+                            DropdownMenuItem(text = {Text("Remove")}, onClick = {
+                                viewModel.RemoveSongFromPlaylist(playlist, song)
+                                deleteSongDropdown = null
+                                if (viewModel.GetSelectedSong() != null) LoadPlaylist(viewModel, context, player,playlist.list.songs)
+                            })
+                        }
+                    }
+                }
+            }
+        }
+
     }
     else {
         Column(modifier = modifier) {
@@ -296,22 +521,44 @@ fun DisplayMusicPlaylists(viewModel: MusicViewModel, context : Context, player :
             LazyColumn(userScrollEnabled = true) {
                 playlists.forEach { playlist ->
                     item(playlist.id) {
-                        Row(Modifier.fillMaxWidth()) {
-                            Image(
-                                painter = painterResource(playlist.imgID),
-                                contentDescription = "Music Icon",
-                                modifier = Modifier.height(80.dp).padding(5.dp)
-                            )
-                            Text(
-                                playlist.name,
-                                color = Color.Black,
-                                modifier = Modifier.padding(5.dp)
-                            )
+                        Button(onClick = {openedPlaylistID = playlist.id}, colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent)) {
+                            Row(Modifier.fillMaxWidth()) {
+                                Image(
+                                    painter = painterResource(playlist.imgID),
+                                    contentDescription = "Music Icon",
+                                    modifier = Modifier
+                                        .height(80.dp)
+                                        .padding(5.dp)
+                                )
+                                Text(
+                                    playlist.name,
+                                    color = Color.Black,
+                                    modifier = Modifier.padding(5.dp)
+                                )
+                            }
                         }
                     }
-                    items(playlist.list.songs) {
-
-                    }
+//                    items(playlist.list.songs) { song ->
+//                        Row(Modifier.fillMaxWidth()) {
+//                            Button(
+//                                onClick = {
+//                                    onPlay(song)
+//                                },
+//                                colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent)
+//                            ) {
+//                                Image(
+//                                    painter = painterResource(song.imgID),
+//                                    contentDescription = "Music Icon",
+//                                    modifier = Modifier.height(80.dp).padding(5.dp)
+//                                )
+//                                Text(
+//                                    song.name,
+//                                    color = Color.Black,
+//                                    modifier = Modifier.padding(5.dp)
+//                                )
+//                            }
+//                        }
+//                    }
                 }
             }
         }
@@ -327,7 +574,9 @@ fun DisplayMusicList(viewModel: MusicViewModel, context : Context, player : ExoP
     val selectedMusic by viewModel.selectedMusic.collectAsStateWithLifecycle()
     val musicList by viewModel.musicList.collectAsStateWithLifecycle()
     Scaffold(
-        topBar = {Row(Modifier.fillMaxWidth().padding(15.dp)){
+        topBar = {Row(Modifier
+            .fillMaxWidth()
+            .padding(15.dp)){
             Button(onClick = {selectedMusicPage = MusicSelectionPage.BROWSE}){
                 Text("Music")
             }
@@ -365,7 +614,8 @@ fun DisplayMusicList(viewModel: MusicViewModel, context : Context, player : ExoP
                             LoadSong(viewModel, context, player, newSong)
                             viewModel.AddToMusicList(newSong)
                         }
-                    })
+                    },
+                    viewModel)
             }
         }
     ) { paddingValues ->
@@ -376,21 +626,24 @@ fun DisplayMusicList(viewModel: MusicViewModel, context : Context, player : ExoP
                 { music ->
                 LoadSong(viewModel, context, player, music)
                 viewModel.AddToMusicList(music)
-            })
+            },
+                {
+                    LoadPlaylist(viewModel, context, player, it, 0)
+                })
     }
 
 
 }
 
-@Composable
-fun LoadPlaylist(viewModel : MusicViewModel,context : Context,player : ExoPlayer, resIds: List<Song>, startIndex: Int = 0) {
-    val items = resIds.map { song ->
+
+fun LoadPlaylist(viewModel : MusicViewModel,context : Context,player : ExoPlayer, list: List<Song>, startIndex: Int = 0) {
+    val items = list.map { song ->
         val id = song.fileID
         MediaItem.fromUri("android.resource://${context.packageName}/$id")
     }
     player.setMediaItems(items, startIndex, 0L)
     player.prepare()
-    viewModel.SelectMusic(resIds[startIndex])
+    viewModel.SelectMusic(list[startIndex])
 }
 
 
@@ -401,40 +654,239 @@ fun LoadSong(viewModel: MusicViewModel, context : Context, player: ExoPlayer, so
 }
 
 @Composable
-fun MusicPlayer(music : Song, player : ExoPlayer, onPrev : () -> Unit, onNext : () -> Unit){
+fun MusicPlayer(song : Song, player : ExoPlayer, onPrev : () -> Unit, onNext : () -> Unit, viewModel: MusicViewModel){
     var isPlaying by rememberSaveable() { mutableStateOf(false) }
-    Row(Modifier.fillMaxWidth().height(100.dp), verticalAlignment = Alignment.CenterVertically) {
-        Image(
-            painter = painterResource(music.imgID),
-            contentDescription = "Music Icon",
-            Modifier.height(100.dp).padding(15.dp)
-        )
-        Text(music.name, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
-        IconButton(
-            onClick = { onPrev() }
-        ) {
-            Icon(
-                imageVector = Icons.Filled.SkipPrevious,
-                contentDescription = "Back",
-                tint = Color.Black
-            )
-        }
-        IconButton(onClick = { if (isPlaying) player.pause() else player.play()
-            isPlaying = !isPlaying
-        }) {
-            Icon(
-                if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
-                contentDescription = if (isPlaying) "Pause" else "Play"
-            )
-        }
-        IconButton(
-            onClick = { onNext() }
-        ) {
-            Icon(
-                imageVector = Icons.Filled.SkipNext,
-                contentDescription = "Back",
-                tint = Color.Black
-            )
+    var expandDetails by rememberSaveable() { mutableStateOf(false) }
+
+    if (expandDetails)
+        SongDetailsPage(song, player, onPrev, onNext, {expandDetails = false}, isPlaying,
+            {
+                player.pause()
+                isPlaying = false
+            },
+            {
+                player.play()
+                isPlaying = true
+            },
+            viewModel)
+    else{
+        Row(Modifier
+            .fillMaxWidth()
+            .height(100.dp), verticalAlignment = Alignment.CenterVertically) {
+            Button(onClick = {expandDetails = true}, colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent, contentColor = Color.Black), modifier = Modifier.weight(1f)) {
+                Image(
+                    painter = painterResource(song.imgID),
+                    contentDescription = "Music Icon",
+                    Modifier
+                        .height(100.dp)
+                        .padding(15.dp)
+                )
+                Text(song.name, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+            }
+            IconButton(
+                onClick = { onPrev() }
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.SkipPrevious,
+                    contentDescription = "Back",
+                    tint = Color.Black
+                )
+            }
+            IconButton(onClick = { if (isPlaying) player.pause() else player.play()
+                isPlaying = !isPlaying
+            }) {
+                Icon(
+                    if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
+                    contentDescription = if (isPlaying) "Pause" else "Play"
+                )
+            }
+            IconButton(
+                onClick = { onNext() }
+            ) {
+                Icon(
+                    imageVector = Icons.Filled.SkipNext,
+                    contentDescription = "Back",
+                    tint = Color.Black
+                )
+            }
         }
     }
+}
+
+@Composable
+fun SongDetailsPage(song : Song,
+                    player : ExoPlayer,
+                    onPrev : () -> Unit,
+                    onNext : () -> Unit,
+                    onDismiss : ()->Unit,
+                    isPlaying : Boolean,
+                    onPause : ()->Unit,
+                    onPlay : ()->Unit,
+                    viewModel: MusicViewModel
+){
+    var duration by remember { mutableLongStateOf(0L) }
+    var position by remember { mutableLongStateOf(0L) }
+    var addToPlayListScreen by rememberSaveable() { mutableStateOf(false) }
+
+    LaunchedEffect(player, isPlaying) {
+        while (isPlaying) {
+            position = player.currentPosition
+            duration = player.duration.coerceAtLeast(0L)
+            delay(500)
+        }
+    }
+
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth(0.95f)
+                .fillMaxHeight(0.95f),
+            shape = RoundedCornerShape(20.dp)
+        ) {
+            Scaffold(topBar = {
+                Row(Modifier
+                    .fillMaxWidth()
+                    .padding(5.dp)){
+                    IconButton(
+                        onClick = { onDismiss() }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.KeyboardArrowDown,
+                            contentDescription = "Back",
+                            tint = Color.Black
+                        )
+                    }
+                    Spacer(Modifier.weight(1f))
+                    Button(onClick = { addToPlayListScreen = true}){
+                        Text("Save To Playlist")
+                    }
+
+                }
+
+            }) { paddingValues ->
+                Column(
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(paddingValues),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Image(
+                        painterResource(song.imgID),
+                        contentDescription = "Song Image",
+                        modifier = Modifier
+                            .padding(5.dp)
+                            .fillMaxWidth()
+                    )
+                    Spacer(Modifier.height(30.dp))
+                    Text(song.name, style = MaterialTheme.typography.headlineMedium)
+                    Spacer(Modifier.height(30.dp))
+                    Slider(
+                        value = position.toFloat(),
+                        onValueChange = { position = it.toLong() },
+                        onValueChangeFinished = { player.seekTo(position) },
+                        valueRange = 0f..duration.toFloat().coerceAtLeast(1f)
+                    )
+                    Spacer(Modifier.height(30.dp))
+                    Row() {
+
+                        IconButton(
+                            onClick = { onPrev() }
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.SkipPrevious,
+                                contentDescription = "Back",
+                                tint = Color.Black,
+                                modifier = Modifier.size(50.dp)
+                            )
+                        }
+                        Spacer(Modifier.weight(1f))
+                        IconButton(onClick = {
+                            if (isPlaying) onPause() else onPlay()
+                        }) {
+                            Icon(
+                                if (isPlaying) Icons.Filled.Pause else Icons.Filled.PlayArrow,
+                                contentDescription = if (isPlaying) "Pause" else "Play",
+                                modifier = Modifier.size(50.dp)
+                            )
+                        }
+                        Spacer(Modifier.weight(1f))
+                        IconButton(
+                            onClick = { onNext() }
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.SkipNext,
+                                contentDescription = "Back",
+                                tint = Color.Black,
+                                modifier = Modifier.size(50.dp)
+                            )
+                        }
+                    }
+
+
+                }
+            }
+        }
+    }
+    if (addToPlayListScreen){
+        Dialog(
+            onDismissRequest = onDismiss,
+            properties = DialogProperties(usePlatformDefaultWidth = false)
+        ) {
+            Card(
+                modifier = Modifier
+                    .fillMaxWidth(0.95f)
+                    .fillMaxHeight(0.5f),
+                shape = RoundedCornerShape(20.dp)
+            ){
+                SelectPlaylist(viewModel,{addToPlayListScreen = false}, { viewModel.AddSongTpPlaylist(it, song)} )
+            }
+        }
+    }
+}
+
+@Composable
+fun SelectPlaylist(viewModel: MusicViewModel, onDismiss: () -> Unit, onSelect: (Playlist) -> Unit, modifier : Modifier = Modifier){
+    val playlists = viewModel.GetPlaylists()
+    Scaffold(
+        topBar = {
+        IconButton(
+            onClick = { onDismiss() }
+        ) {
+            Icon(
+                imageVector = Icons.Rounded.KeyboardArrowDown,
+                contentDescription = "Back",
+                tint = Color.Black
+            )
+        }
+    }){ paddingValues ->
+        LazyColumn(Modifier.padding(paddingValues)) {
+            playlists.forEach { playlist ->
+                item(playlist.id) {
+                    Button(
+                        onClick = { onSelect(playlist) },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent)
+                    ) {
+                        Row(Modifier.fillMaxWidth()) {
+                            Image(
+                                painter = painterResource(playlist.imgID),
+                                contentDescription = "Music Icon",
+                                modifier = Modifier
+                                    .height(80.dp)
+                                    .padding(5.dp)
+                            )
+                            Text(
+                                playlist.name,
+                                color = Color.Black,
+                                modifier = Modifier.padding(5.dp)
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
+
 }
