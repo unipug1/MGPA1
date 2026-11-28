@@ -1,4 +1,4 @@
-package com.nyp.scaffoldingapp.ui.KaiserClasses
+package com.nyp.scaffoldingapp.data
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -39,7 +39,7 @@ object UserApi {
         }
     }
 
-    private fun parseUser(body : String, email: String, password : String) : User{
+    private fun parseUser(body : String, email: String, password : String) : User {
         val json = JSONObject(body)
         //val user = json.getJSONObject(email)
         return User(

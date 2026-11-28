@@ -1,4 +1,4 @@
-package com.nyp.scaffoldingapp.ui.pages
+package com.nyp.scaffoldingapp.ui.home
 
 data class Subject(
     val id: String,

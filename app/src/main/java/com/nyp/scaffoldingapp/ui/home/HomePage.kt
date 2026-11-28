@@ -1,4 +1,4 @@
-package com.nyp.scaffoldingapp.ui.pages
+package com.nyp.scaffoldingapp.ui.home
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -42,6 +42,7 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.runtime.key
+import androidx.compose.ui.unit.Dp
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -811,7 +812,7 @@ private fun PauseButton(
     running: Boolean,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    diameter: androidx.compose.ui.unit.Dp = 40.dp
+    diameter: Dp = 40.dp
 ) {
     val label = if (running) "Pause" else "Resume"
     IconButton(

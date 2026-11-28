@@ -1,9 +1,7 @@
-package com.nyp.scaffoldingapp.ui.pages
+package com.nyp.scaffoldingapp.ui.user
 
-import android.R
 import android.util.Log
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
@@ -22,16 +20,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.nyp.scaffoldingapp.ui.KaiserClasses.MusicViewModel
-import com.nyp.scaffoldingapp.ui.KaiserClasses.User
-import com.nyp.scaffoldingapp.ui.KaiserClasses.UserViewModel
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
-import org.json.JSONObject
-import retrofit2.http.GET
-import java.net.HttpURLConnection
-import java.net.URL
-import java.util.UUID
+import com.nyp.scaffoldingapp.data.UserViewModel
 
 
 enum class AccountPage{

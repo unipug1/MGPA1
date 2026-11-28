@@ -1,4 +1,4 @@
-package com.nyp.scaffoldingapp.ui.pages
+package com.nyp.scaffoldingapp.ui.ranking
 
 data class RankingStudyRecord(
     val userID: String,

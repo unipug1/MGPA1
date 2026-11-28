@@ -13,12 +13,15 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
 import androidx.lifecycle.viewmodel.compose.viewModel
-import com.nyp.scaffoldingapp.ui.KaiserClasses.EventViewModel
-import com.nyp.scaffoldingapp.ui.KaiserClasses.MusicViewModel
-import com.nyp.scaffoldingapp.ui.KaiserClasses.SubjectViewModel
-import com.nyp.scaffoldingapp.ui.KaiserClasses.UserViewModel
+import com.nyp.scaffoldingapp.ui.calendar.EventViewModel
+import com.nyp.scaffoldingapp.ui.music.MusicViewModel
+import com.nyp.scaffoldingapp.ui.todo.SubjectViewModel
+import com.nyp.scaffoldingapp.data.UserViewModel
+import com.nyp.scaffoldingapp.ui.calendar.CalendarPage
+import com.nyp.scaffoldingapp.ui.music.MusicPage
 import com.nyp.scaffoldingapp.ui.pages.*
 import com.nyp.scaffoldingapp.ui.theme.ScaffoldingTheme
+import com.nyp.scaffoldingapp.ui.user.LoginPage
 
 /**
  * The four bottom tabs. An enum keeps the list in one place — add a tab here
@@ -85,7 +88,7 @@ fun AppScaffold() {
 //                Tab.PAGE2 -> GroupPage(Modifier, GroupViewModel())
 //                Tab.PAGE3 -> FlashcardsPage(Modifier, FlashcardsViewModel())
                 //Tab.PAGE1 -> ToDoPage(subjViewModel ,Modifier)
-                Tab.PAGE1 -> LoginPage(userViewModel, {selectedTab = Tab.PAGE2})
+                Tab.PAGE1 -> LoginPage(userViewModel, { selectedTab = Tab.PAGE2 })
                 Tab.PAGE2 -> CalendarPage(eventViewModel, Modifier)
                 Tab.PAGE3 -> MusicPage(musicViewModel)
                 Tab.PAGE4 -> Page4()

@@ -1,4 +1,4 @@
-package com.nyp.scaffoldingapp.ui.pages
+package com.nyp.scaffoldingapp.ui.flashcard
 
 data class FlashcardDeck(
     val id: String,

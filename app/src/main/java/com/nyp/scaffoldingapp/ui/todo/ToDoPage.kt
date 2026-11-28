@@ -1,7 +1,6 @@
-package com.nyp.scaffoldingapp.ui.pages
+package com.nyp.scaffoldingapp.ui.todo
 
 
-import android.util.Log
 import java.time.Instant
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.runtime.Composable
@@ -50,20 +49,11 @@ import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.DayOfWeek
 
-import com.nyp.scaffoldingapp.ui.KaiserClasses.Subject
-import com.nyp.scaffoldingapp.ui.KaiserClasses.Task
-import com.nyp.scaffoldingapp.ui.KaiserClasses.DateTimeFormat
 import kotlinx.coroutines.delay
 
 import kotlin.collections.listOf
 import kotlin.time.Duration.Companion.milliseconds
 
-import com.nyp.scaffoldingapp.ui.KaiserClasses.CompletionProgress
-import com.nyp.scaffoldingapp.ui.KaiserClasses.Edit
-import com.nyp.scaffoldingapp.ui.KaiserClasses.RoutineType
-import com.nyp.scaffoldingapp.ui.KaiserClasses.SubjectViewModel
-import com.nyp.scaffoldingapp.ui.KaiserClasses.TimeFormat
-import com.nyp.scaffoldingapp.ui.KaiserClasses.ToDoSubjects
 import kotlinx.coroutines.flow.filter
 import java.text.SimpleDateFormat
 import java.time.ZoneId
@@ -79,7 +69,6 @@ import kotlin.time.ExperimentalTime
 import androidx.compose.runtime.saveable.Saver
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.window.PopupProperties
-import com.nyp.scaffoldingapp.ui.KaiserClasses.Routine
 import java.time.temporal.TemporalAdjusters
 import kotlin.time.DurationUnit
 

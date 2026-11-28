@@ -1,6 +1,5 @@
-package com.nyp.scaffoldingapp.ui.pages
+package com.nyp.scaffoldingapp.ui.settings
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -8,7 +7,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material3.Button
@@ -23,13 +21,12 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.nyp.scaffoldingapp.ui.KaiserClasses.UserCategory
-import com.nyp.scaffoldingapp.ui.KaiserClasses.UserViewModel
-import com.nyp.scaffoldingapp.ui.KaiserClasses.User
+import com.nyp.scaffoldingapp.data.UserCategory
+import com.nyp.scaffoldingapp.data.UserViewModel
+import com.nyp.scaffoldingapp.data.User
 
 @Composable
 fun CategoryPage(viewModel: UserViewModel, onDismiss : ()->Unit, onSelect : (UserCategory)->Unit){
