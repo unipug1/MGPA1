@@ -81,10 +81,11 @@ fun AppScaffold() {
         // the navigation bar.
         Box(Modifier.padding(padding).fillMaxSize()) {
             when (selectedTab) {
-                Tab.PAGE1 -> HomePage(Modifier, HomeViewModel())
-                Tab.PAGE2 -> GroupPage(Modifier, GroupViewModel())
-                Tab.PAGE3 -> FlashcardsPage(Modifier, FlashcardsViewModel())
-                Tab.PAGE1 -> ToDoPage(subjViewModel ,Modifier)
+//                Tab.PAGE1 -> HomePage(Modifier, HomeViewModel())
+//                Tab.PAGE2 -> GroupPage(Modifier, GroupViewModel())
+//                Tab.PAGE3 -> FlashcardsPage(Modifier, FlashcardsViewModel())
+                //Tab.PAGE1 -> ToDoPage(subjViewModel ,Modifier)
+                Tab.PAGE1 -> LoginPage(userViewModel, {selectedTab = Tab.PAGE2})
                 Tab.PAGE2 -> CalendarPage(eventViewModel, Modifier)
                 Tab.PAGE3 -> MusicPage(musicViewModel)
                 Tab.PAGE4 -> Page4()
