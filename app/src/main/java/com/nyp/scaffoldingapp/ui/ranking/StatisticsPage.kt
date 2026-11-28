@@ -1,4 +1,4 @@
-package com.nyp.scaffoldingapp.ui.pages
+package com.nyp.scaffoldingapp.ui.ranking
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border

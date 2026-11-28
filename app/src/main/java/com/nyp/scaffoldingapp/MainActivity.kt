@@ -1,17 +1,27 @@
 package com.nyp.scaffoldingapp
 
+import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.layout.*
 import androidx.annotation.DrawableRes
+import androidx.annotation.RequiresApi
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.painterResource
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.nyp.scaffoldingapp.ui.calendar.EventViewModel
+import com.nyp.scaffoldingapp.ui.music.MusicViewModel
+import com.nyp.scaffoldingapp.ui.todo.SubjectViewModel
+import com.nyp.scaffoldingapp.data.UserViewModel
+import com.nyp.scaffoldingapp.ui.calendar.CalendarPage
+import com.nyp.scaffoldingapp.ui.music.MusicPage
 import com.nyp.scaffoldingapp.ui.pages.*
 import com.nyp.scaffoldingapp.ui.theme.ScaffoldingTheme
+import com.nyp.scaffoldingapp.ui.user.LoginPage
 
 /**
  * The four bottom tabs. An enum keeps the list in one place — add a tab here
@@ -25,6 +35,7 @@ enum class Tab(val label: String, @DrawableRes val icon: Int) {
 }
 
 class MainActivity : ComponentActivity() {
+    @RequiresApi(Build.VERSION_CODES.O)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent {
@@ -35,10 +46,16 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+@RequiresApi(Build.VERSION_CODES.O)
 @Composable
 fun AppScaffold() {
     // rememberSaveable, not remember: the selected tab must survive a rotation.
     var selectedTab by rememberSaveable { mutableStateOf(Tab.PAGE1) }
+
+    val subjViewModel: SubjectViewModel = viewModel()
+    val eventViewModel: EventViewModel = viewModel()
+    val musicViewModel : MusicViewModel = viewModel()
+    val userViewModel : UserViewModel = viewModel()
 
     Scaffold(
         bottomBar = {
@@ -67,9 +84,13 @@ fun AppScaffold() {
         // the navigation bar.
         Box(Modifier.padding(padding).fillMaxSize()) {
             when (selectedTab) {
-                Tab.PAGE1 -> HomePage(Modifier, HomeViewModel())
-                Tab.PAGE2 -> GroupPage(Modifier, GroupViewModel())
-                Tab.PAGE3 -> FlashcardsPage(Modifier, FlashcardsViewModel())
+//                Tab.PAGE1 -> HomePage(Modifier, HomeViewModel())
+//                Tab.PAGE2 -> GroupPage(Modifier, GroupViewModel())
+//                Tab.PAGE3 -> FlashcardsPage(Modifier, FlashcardsViewModel())
+                //Tab.PAGE1 -> ToDoPage(subjViewModel ,Modifier)
+                Tab.PAGE1 -> LoginPage(userViewModel, { selectedTab = Tab.PAGE2 })
+                Tab.PAGE2 -> CalendarPage(eventViewModel, Modifier)
+                Tab.PAGE3 -> MusicPage(musicViewModel)
                 Tab.PAGE4 -> Page4()
             }
         }

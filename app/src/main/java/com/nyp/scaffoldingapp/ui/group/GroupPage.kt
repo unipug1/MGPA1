@@ -1,4 +1,4 @@
-package com.nyp.scaffoldingapp.ui.pages
+package com.nyp.scaffoldingapp.ui.group
 
 import androidx.compose.foundation.background
 import androidx.compose.material3.MaterialTheme
@@ -80,6 +80,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
 import androidx.compose.runtime.remember
+import java.util.UUID
 
 @Composable
 fun GroupPage(
@@ -158,8 +159,7 @@ fun GroupPage(
                             selectedHomeGroup.groupID to newNickname)
                 },
                 notificationPreferences =
-                notificationPreferencesByGroup[selectedHomeGroup.groupID] ?:
-                GroupNotificationPreferences(),
+                notificationPreferencesByGroup[selectedHomeGroup.groupID] ?: GroupNotificationPreferences(),
                 onNotificationPreferencesChange = { updatedPreferences ->
                     notificationPreferencesByGroup =
                         notificationPreferencesByGroup + (
@@ -1131,7 +1131,7 @@ private fun CreateGroupPage(
                 Button(
                     onClick = {
                         val newGroup = Group(
-                            groupID = java.util.UUID.randomUUID().toString(),
+                            groupID = UUID.randomUUID().toString(),
                             groupName = groupName.trim(),
                             yearOfStudy = selectedCategory,
                             memberCount = 1,

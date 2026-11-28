@@ -1,4 +1,4 @@
-package com.nyp.scaffoldingapp.ui.pages
+package com.nyp.scaffoldingapp.ui.flashcard
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.*

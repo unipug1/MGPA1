@@ -1,4 +1,4 @@
-package com.nyp.scaffoldingapp.ui.pages
+package com.nyp.scaffoldingapp.ui.group
 
 data class Group(
     val groupID: String,

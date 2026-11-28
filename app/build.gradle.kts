@@ -6,11 +6,7 @@ plugins {
 android {
 
     namespace = "com.nyp.scaffoldingapp"
-    compileSdk {
-        version = release(36) {
-            minorApiLevel = 1
-        }
-    }
+    compileSdk = 37
 
     defaultConfig {
         applicationId = "com.nyp.scaffoldingapp"
@@ -33,12 +29,7 @@ android {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
 
-
         isCoreLibraryDesugaringEnabled = true
-
-
-        sourceCompatibility = JavaVersion.VERSION_1_8
-        targetCompatibility = JavaVersion.VERSION_1_8
     }
 
 
@@ -50,6 +41,7 @@ android {
 }
 
 dependencies {
+    implementation(libs.androidx.compose.ui.text)
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.3")
 
     // 2. Standard string replacements for the broken lines
@@ -75,4 +67,9 @@ dependencies {
     androidTestImplementation(libs.androidx.junit)
     debugImplementation(libs.androidx.compose.ui.test.manifest)
     debugImplementation(libs.androidx.compose.ui.tooling)
+
+    implementation("androidx.media3:media3-exoplayer:1.11.1")
+    implementation("androidx.media3:media3-common:1.11.1")
+    implementation("com.squareup.retrofit2:retrofit:2.11.0")
+    implementation("com.squareup.retrofit2:converter-gson:2.11.0")
 }
